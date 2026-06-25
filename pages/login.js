@@ -8,15 +8,29 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function handleCredentials(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    setLoading(true);
+
+    if (mode === "register") {
+      const r = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        setLoading(false);
+        setError(data.error || "注册失败");
+        return;
+      }
+    }
+
+    const res = await signIn("credentials", { email, password, redirect: false });
+    setLoading(false);
     if (res?.error) {
       setError("登录失败，请检查邮箱或密码");
     } else {
@@ -34,19 +48,7 @@ export default function Login() {
       </div>
 
       <div className="card">
-        <button className="btn" onClick={() => signIn("google", { callbackUrl: "/home" })}>
-          使用谷歌账号{mode === "login" ? "登录" : "注册"}
-        </button>
-        <button className="btn" onClick={() => signIn("apple", { callbackUrl: "/home" })}>
-          使用苹果账号{mode === "login" ? "登录" : "注册"}
-        </button>
-        <button className="btn" onClick={() => signIn("wechat", { callbackUrl: "/home" })}>
-          使用微信{mode === "login" ? "登录" : "注册"}
-        </button>
-
-        <div className="divider">或使用邮箱</div>
-
-        <form onSubmit={handleCredentials}>
+        <form onSubmit={handleSubmit}>
           <input
             className="input"
             type="email"
@@ -58,14 +60,15 @@ export default function Login() {
           <input
             className="input"
             type="password"
-            placeholder="密码"
+            placeholder={mode === "register" ? "设置密码（至少6位）" : "密码"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={6}
           />
           {error && <p style={{ color: "var(--coral-deep)", fontSize: 13 }}>{error}</p>}
-          <button className="btn primary" type="submit">
-            {mode === "login" ? "登录" : "注册并登录"}
+          <button className="btn primary" type="submit" disabled={loading}>
+            {loading ? "处理中..." : mode === "login" ? "登录" : "注册并登录"}
           </button>
         </form>
 
@@ -75,6 +78,7 @@ export default function Login() {
             href="#"
             onClick={(e) => {
               e.preventDefault();
+              setError("");
               setMode(mode === "login" ? "register" : "login");
             }}
             style={{ color: "var(--coral-deep)", marginLeft: 6 }}

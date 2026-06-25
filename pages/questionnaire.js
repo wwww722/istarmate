@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
 
 const DOMAIN_META = {
   mood: { name: "情绪状态", low: "整体情绪比较稳定。", mid: "最近情绪有点低落或波动。", high: "情绪持续低落、提不起兴趣的情况比较明显。" },
@@ -35,11 +36,16 @@ const OPTIONS = [
 
 export default function Questionnaire() {
   const router = useRouter();
+  const { status } = useSession();
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState(new Array(QUESTIONS.length).fill(null));
   const [showCrisis, setShowCrisis] = useState(false);
   const [crisisTriggered, setCrisisTriggered] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.replace("/login");
+  }, [status, router]);
 
   const q = QUESTIONS[current];
 
@@ -55,20 +61,14 @@ export default function Questionnaire() {
       setShowCrisis(true);
       return;
     }
-    if (current < QUESTIONS.length - 1) {
-      setCurrent(current + 1);
-    } else {
-      finish();
-    }
+    if (current < QUESTIONS.length - 1) setCurrent(current + 1);
+    else finish();
   }
 
   function continueFromCrisis() {
     setShowCrisis(false);
-    if (current < QUESTIONS.length - 1) {
-      setCurrent(current + 1);
-    } else {
-      finish();
-    }
+    if (current < QUESTIONS.length - 1) setCurrent(current + 1);
+    else finish();
   }
 
   async function finish() {
@@ -88,15 +88,17 @@ export default function Questionnaire() {
       return { key, name: DOMAIN_META[key].name, level, pct, desc };
     });
 
-    const questionnaire = { domains, crisisTriggered, completedAt: new Date().toISOString() };
-
-    // 自动把问卷结果存起来，供"每日小剧场"页面直接读取使用，
-    // 等于把问卷"上传"给了 AI 对话流程（实际生产环境建议同时存到数据库，而不仅是 localStorage）。
-    localStorage.setItem("istarmate_questionnaire", JSON.stringify(questionnaire));
+    await fetch("/api/questionnaire", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domains, crisisTriggered }),
+    });
 
     setSubmitting(false);
-    router.push("/chat");
+    router.push("/dashboard");
   }
+
+  if (status !== "authenticated") return null;
 
   if (showCrisis) {
     return (
