@@ -15,26 +15,32 @@ export default function Login() {
     setError("");
     setLoading(true);
 
-    if (mode === "register") {
-      const r = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await r.json();
-      if (!r.ok) {
-        setLoading(false);
-        setError(data.error || "注册失败");
-        return;
+    try {
+      if (mode === "register") {
+        const r = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        let data = {};
+        try { data = await r.json(); } catch { /* 非 JSON 响应，下面统一报错 */ }
+        if (!r.ok) {
+          setLoading(false);
+          setError(data.error || `注册失败（状态码 ${r.status}）`);
+          return;
+        }
       }
-    }
 
-    const res = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-    if (res?.error) {
-      setError("登录失败，请检查邮箱或密码");
-    } else {
-      router.push("/home");
+      const res = await signIn("credentials", { email, password, redirect: false });
+      setLoading(false);
+      if (res?.error) {
+        setError("登录失败，请检查邮箱或密码");
+      } else {
+        router.push("/home");
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("网络或服务器异常，请稍后重试（" + String(err).slice(0, 80) + "）");
     }
   }
 
