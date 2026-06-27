@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 
@@ -6,114 +6,151 @@ export default function Scenario() {
   const router = useRouter();
   const { status } = useSession();
   const [scenario, setScenario] = useState(null);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [choices, setChoices] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [opened, setOpened] = useState(false);
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
-    if (status === "authenticated") load();
+    if (status === "authenticated" && !opened) {
+      setOpened(true);
+      loadAndOpen();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
-  async function load() {
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  async function loadAndOpen() {
     setLoading(true);
+    // 先看看今天是不是已经聊过、有没有进度
     const r = await fetch("/api/scenario");
     const data = await r.json();
     if (!r.ok) {
-      setError(data.error || "加载失败");
       setLoading(false);
       if (data.error === "请先完成问卷") router.push("/questionnaire");
       return;
     }
     setScenario(data.scenario);
-    setStepIndex(data.progress.stepIndex || 0);
-    setChoices(data.progress.choices || []);
     setCompleted(data.progress.completed || false);
-    setLoading(false);
+
+    if (data.progress.choices && data.progress.choices.length > 0) {
+      // 已经有聊天记录，直接展示
+      setMessages(data.progress.choices);
+      setLoading(false);
+    } else {
+      // 第一次进来，让AI开场
+      const cr = await fetch("/api/scenario-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: "（开始今天的剧场，按角色身份开场）" }] }),
+      });
+      const cData = await cr.json();
+      setLoading(false);
+      const opening = cData.reply
+        ? [{ role: "assistant", content: cData.reply }]
+        : [{ role: "assistant", content: "（暂时连不上AI，" + (cData.error || "请稍后再试") + "）" }];
+      setMessages(opening);
+      saveProgress(opening, false);
+    }
   }
 
-  async function pickOption(optionId, optionText) {
-    const nextChoices = [...choices, { step: stepIndex, optionId, text: optionText }];
-    const nextStep = stepIndex + 1;
-    const isCompleted = nextStep >= scenario.steps.length - 1;
-
-    setChoices(nextChoices);
-    setStepIndex(nextStep);
-    setCompleted(isCompleted);
-
+  async function saveProgress(msgs, isCompleted) {
     await fetch("/api/scenario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scenarioId: scenario.id,
-        stepIndex: nextStep,
-        choices: nextChoices,
+        scenarioId: scenario?.id || "chat",
+        stepIndex: msgs.length,
+        choices: msgs,
         completed: isCompleted,
       }),
     });
   }
 
-  if (status !== "authenticated" || loading) return null;
-  if (error) return <div className="wrap"><p>{error}</p></div>;
-  if (!scenario) return null;
-
-  // 把已经走过的每一步 AI 台词 + 用户选择，按顺序拼成对话气泡列表
-  const bubbles = [];
-  for (let i = 0; i <= stepIndex && i < scenario.steps.length; i++) {
-    const s = scenario.steps[i];
-    bubbles.push({ role: "ai", text: i === stepIndex && !s.options ? s.closing : s.setup });
-    const c = choices.find((ch) => ch.step === i);
-    if (c) bubbles.push({ role: "me", text: c.text });
+  async function send() {
+    if (!input.trim() || loading) return;
+    const next = [...messages, { role: "user", content: input }];
+    setMessages(next);
+    setInput("");
+    setLoading(true);
+    const r = await fetch("/api/scenario-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: next }),
+    });
+    const data = await r.json();
+    setLoading(false);
+    const withReply = data.reply
+      ? [...next, { role: "assistant", content: data.reply }]
+      : [...next, { role: "assistant", content: "（暂时连不上AI，" + (data.error || "请稍后再试") + "）" }];
+    setMessages(withReply);
+    saveProgress(withReply, false);
   }
 
-  const currentStep = scenario.steps[stepIndex];
-  const isClosing = !currentStep.options;
+  function finishToday() {
+    setCompleted(true);
+    saveProgress(messages, true);
+  }
+
+  if (status !== "authenticated") return null;
+  if (!scenario) return null;
 
   return (
-    <div className="wrap" style={{ paddingBottom: isClosing ? 40 : 140 }}>
+    <div className="wrap" style={{ paddingBottom: completed ? 40 : 140 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }} style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
         <div>
           <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{scenario.title}</p>
-          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0 }}>{scenario.role} · 对话练习</p>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0 }}>{scenario.role} · AI 对话</p>
         </div>
       </div>
 
       <div style={{ marginTop: 18 }}>
-        {bubbles.map((b, i) => (
-          <div key={i} className={`msg-row ${b.role === "me" ? "me" : ""}`}>
-            {b.role === "ai" && <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>}
-            <div className={`bubble ${b.role === "me" ? "me" : "ai"}`} style={{ whiteSpace: "pre-line" }}>{b.text}</div>
+        {messages.map((m, i) => (
+          <div key={i} className={`msg-row ${m.role === "user" ? "me" : ""}`}>
+            {m.role === "assistant" && <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>}
+            <div className={`bubble ${m.role === "user" ? "me" : "ai"}`} style={{ whiteSpace: "pre-line" }}>{m.content}</div>
           </div>
         ))}
+        {loading && (
+          <div className="msg-row">
+            <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>
+            <div className="bubble ai">...</div>
+          </div>
+        )}
+        <div ref={bottomRef} />
       </div>
 
-      {!isClosing && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: "var(--bg)",
-            borderTop: "1px solid var(--line)",
-            padding: "14px 16px",
-          }}
-        >
+      {!completed && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--bg)", borderTop: "1px solid var(--line)", padding: "14px 16px" }}>
           <div style={{ maxWidth: 480, margin: "0 auto" }}>
-            {currentStep.options.map((o) => (
-              <div key={o.id} className="choice-card" style={{ padding: "12px 16px", marginBottom: 8 }} onClick={() => pickOption(o.id, o.text)}>
-                {o.text}
-              </div>
-            ))}
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input
+                className="input"
+                style={{ marginBottom: 0 }}
+                placeholder="说点什么..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+              />
+              <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send} disabled={loading}>
+                发送
+              </button>
+            </div>
+            <button className="btn" style={{ fontSize: 13 }} onClick={finishToday}>
+              结束今天的小剧场
+            </button>
           </div>
         </div>
       )}
 
-      {isClosing && (
+      {completed && (
         <button className="btn primary" style={{ marginTop: 20 }} onClick={() => router.push("/dashboard")}>
           回到今天
         </button>
