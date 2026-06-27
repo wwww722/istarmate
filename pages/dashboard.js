@@ -86,7 +86,13 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <p style={{ textAlign: "center", marginTop: 28 }}>
+      <p style={{ textAlign: "center", marginTop: 18 }}>
+        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/chat"); }} style={{ fontSize: 13.5, color: "var(--purple-deep)" }}>
+          💬 想自由聊聊？找小伙伴说说话 →
+        </a>
+      </p>
+
+      <p style={{ textAlign: "center", marginTop: 12 }}>
         <a href="#" onClick={(e) => { e.preventDefault(); router.push("/home"); }} style={{ fontSize: 13, color: "var(--ink-soft)" }}>
           ← 回到首页
         </a>
