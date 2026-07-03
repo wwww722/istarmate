@@ -2,29 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { streamFetch } from "../../lib/useStreamChat";
-
-function renderMessage(text) {
-  const parts = text.split(/(```[\s\S]*?```)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("```")) {
-      const lines = part.split("\n");
-      const lang = lines[0].replace("```", "").trim() || "code";
-      const code = lines.slice(1, -1).join("\n");
-      return (
-        <div key={i} style={{ margin: "10px 0" }}>
-          <div style={{ background: "#1e1e2e", borderRadius: "10px 10px 0 0", padding: "6px 14px", fontSize: 11.5, color: "#8888aa", display: "flex", justifyContent: "space-between" }}>
-            <span>{lang}</span>
-            <button onClick={() => navigator.clipboard?.writeText(code)} style={{ background: "transparent", border: "none", color: "#8888aa", cursor: "pointer", fontSize: 11.5 }}>复制</button>
-          </div>
-          <pre style={{ background: "#1e1e2e", color: "#cdd6f4", margin: 0, padding: "14px", borderRadius: "0 0 10px 10px", overflowX: "auto", fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
-            <code>{code}</code>
-          </pre>
-        </div>
-      );
-    }
-    return <span key={i} style={{ whiteSpace: "pre-wrap" }}>{part}</span>;
-  });
-}
+import { renderMarkdown } from "../../lib/renderMarkdown";
 
 export default function AiCourseChat() {
   const router = useRouter();
@@ -48,7 +26,7 @@ export default function AiCourseChat() {
   }, [messages, streamingText]);
 
   async function openChat() {
-    await runStream([{ role: "user", content: "（开始课程，按要求打开场白）" }], []);
+    await runStream([{ role: "user", content: "开始" }], []);
   }
 
   async function runStream(apiMessages, displayMessages) {
@@ -90,7 +68,10 @@ export default function AiCourseChat() {
     e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
   }
 
-  const allMessages = [...messages, ...(streamingText ? [{ role: "assistant", content: streamingText, streaming: true }] : [])];
+  const allMessages = [
+    ...messages,
+    ...(streamingText ? [{ role: "assistant", content: streamingText, streaming: true }] : [])
+  ];
 
   if (status !== "authenticated") return null;
 
@@ -102,8 +83,10 @@ export default function AiCourseChat() {
           <p style={{ fontSize: 14.5, fontWeight: 500, margin: 0 }}>AI 编程导师</p>
           <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>帮你做出第一个网站</p>
         </div>
-        <button onClick={() => { setMessages([]); setOpened(false); setTimeout(() => { setOpened(true); openChat(); }, 100); }}
-          style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-soft)", background: "transparent", border: "1px solid var(--line)", padding: "5px 12px", borderRadius: 8, cursor: "pointer" }}>
+        <button
+          onClick={() => { setMessages([]); setOpened(false); setTimeout(() => { setOpened(true); openChat(); }, 100); }}
+          style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-soft)", background: "transparent", border: "1px solid var(--line)", padding: "5px 12px", borderRadius: 8, cursor: "pointer" }}
+        >
           新对话
         </button>
       </div>
@@ -115,7 +98,7 @@ export default function AiCourseChat() {
               {m.role === "user" ? "👤" : "🤖"}
             </div>
             <div style={{ maxWidth: "85%", background: m.role === "user" ? "var(--purple)" : "var(--card)", color: m.role === "user" ? "#fff" : "var(--ink)", border: m.role === "user" ? "none" : "1px solid var(--line)", borderRadius: m.role === "user" ? "16px 4px 16px 16px" : "4px 16px 16px 16px", padding: "12px 16px", fontSize: 14.5, lineHeight: 1.7 }}>
-              {m.role === "assistant" ? renderMessage(m.content) : m.content}
+              {m.role === "assistant" ? renderMarkdown(m.content) : m.content}
               {m.streaming && <span style={{ opacity: 0.5 }}>▌</span>}
             </div>
           </div>
@@ -131,11 +114,20 @@ export default function AiCourseChat() {
 
       <div style={{ padding: "12px 20px 20px", borderTop: "1px solid var(--line)", background: "var(--bg)" }}>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end", background: "var(--card)", border: "1px solid var(--line)", borderRadius: 14, padding: "8px 8px 8px 14px" }}>
-          <textarea ref={textareaRef} rows={1} placeholder="说说你想做什么，或者粘贴代码/报错信息..." value={input}
-            onChange={(e) => { setInput(e.target.value); autoResize(e); }} onKeyDown={handleKeyDown}
-            style={{ flex: 1, border: "none", outline: "none", resize: "none", background: "transparent", fontSize: 14.5, fontFamily: "inherit", lineHeight: 1.6, color: "var(--ink)", minHeight: 24, maxHeight: 160 }} />
-          <button onClick={send} disabled={loading || !input.trim()}
-            style={{ width: 34, height: 34, borderRadius: 10, border: "none", background: loading || !input.trim() ? "var(--line)" : "var(--purple)", color: "#fff", cursor: loading || !input.trim() ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            placeholder="说说你想做什么，或者粘贴代码/报错信息..."
+            value={input}
+            onChange={(e) => { setInput(e.target.value); autoResize(e); }}
+            onKeyDown={handleKeyDown}
+            style={{ flex: 1, border: "none", outline: "none", resize: "none", background: "transparent", fontSize: 14.5, fontFamily: "inherit", lineHeight: 1.6, color: "var(--ink)", minHeight: 24, maxHeight: 160 }}
+          />
+          <button
+            onClick={send}
+            disabled={loading || !input.trim()}
+            style={{ width: 34, height: 34, borderRadius: 10, border: "none", background: loading || !input.trim() ? "var(--line)" : "var(--purple)", color: "#fff", cursor: loading || !input.trim() ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}
+          >
             ↑
           </button>
         </div>

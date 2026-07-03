@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { streamFetch } from "../lib/useStreamChat";
+import { renderMarkdown } from "../lib/renderMarkdown";
 
 export default function Scenario() {
   const router = useRouter();
@@ -106,7 +107,7 @@ export default function Scenario() {
         {messages.map((m, i) => (
           <div key={i} className={`msg-row ${m.role === "user" ? "me" : ""}`}>
             {m.role === "assistant" && <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>}
-            <div className={`bubble ${m.role === "user" ? "me" : "ai"}`} style={{ whiteSpace: "pre-line" }}>{m.content}</div>
+            <div className={`bubble ${m.role === "user" ? "me" : "ai"}`} style={{ whiteSpace: "pre-line" }}>{m.role === "assistant" ? renderMarkdown(m.content) : m.content}</div>
           </div>
         ))}
         {(loading || streamingText) && (
