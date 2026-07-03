@@ -51,17 +51,17 @@ export default function Home() {
           <span className="tag" style={{ background: "#E1F5EE", color: "var(--teal-deep)" }}>可以开始</span>
         </div>
         <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 8, marginBottom: 0 }}>
-          先做一次简单的心情自评，之后每天有一段小剧场陪你聊聊。
+          先做一次情绪自评，之后每天有AI陪你聊聊。
         </p>
       </div>
 
-      <div className="choice-card disabled">
+      <div className="choice-card" onClick={() => router.push("/ai-course")}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h3 style={{ fontSize: 17 }}>AI 素养课程</h3>
-          <span className="tag">开发中</span>
+          <span className="tag" style={{ background: "#E1F5EE", color: "var(--teal-deep)" }}>可以开始</span>
         </div>
         <p style={{ fontSize: 13.5, color: "var(--ink-soft)", marginTop: 8, marginBottom: 0 }}>
-          即将上线，敬请期待。
+          每天6分钟，用AI做出你的第一个网站。
         </p>
       </div>
     </div>

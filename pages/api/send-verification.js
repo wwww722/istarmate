@@ -35,13 +35,13 @@ export default async function handler(req, res) {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM || "心情小驿站 <noreply@resend.dev>",
+      from: process.env.RESEND_FROM || "IStarMate <noreply@resend.dev>",
       to: normalized,
-      subject: "心情小驿站 — 注册验证码",
+      subject: "IStarMate — 注册验证码",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
           <h2 style="color:#2B2740;margin-bottom:8px;">你好！</h2>
-          <p style="color:#6E6C8A;">欢迎注册心情小驿站，你的验证码是：</p>
+          <p style="color:#6E6C8A;">欢迎注册IStarMate，你的验证码是：</p>
           <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#8B7FD9;margin:24px 0;">
             ${token}
           </div>

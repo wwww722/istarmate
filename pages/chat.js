@@ -1,40 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
+import { streamFetch } from "../lib/useStreamChat";
 
 export default function Chat() {
   const router = useRouter();
   const { status } = useSession();
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
+  const [streamingText, setStreamingText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState("");
   const [opened, setOpened] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
-    if (status === "authenticated" && !opened) {
-      setOpened(true);
-      openChat();
-    }
+    if (status === "authenticated" && !opened) { setOpened(true); openChat(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, streamingText]);
 
   async function openChat() {
-    setLoading(true);
-    const r = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: "（开始今天的聊天，跟我打个招呼，问问我今天心情怎么样）" }] }),
-    });
-    const data = await r.json();
-    setLoading(false);
-    if (data.reply) setMessages([{ role: "assistant", content: data.reply }]);
-    else setMessages([{ role: "assistant", content: "（暂时连不上AI，" + (data.error || "请稍后再试") + "）" }]);
+    const initMsg = [{ role: "user", content: "（开始今天的聊天，跟我打个招呼，问问我今天心情怎么样）" }];
+    await runStream(initMsg, []);
   }
 
   async function send() {
@@ -42,16 +33,28 @@ export default function Chat() {
     const next = [...messages, { role: "user", content: input }];
     setMessages(next);
     setInput("");
+    await runStream(next, next);
+  }
+
+  async function runStream(apiMessages, displayMessages) {
     setLoading(true);
-    const r = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: next }),
-    });
-    const data = await r.json();
-    setLoading(false);
-    if (data.reply) setMessages([...next, { role: "assistant", content: data.reply }]);
-    else setMessages([...next, { role: "assistant", content: "（暂时连不上AI，" + (data.error || "请稍后再试") + "）" }]);
+    setStreamingText("");
+    let fullText = "";
+    await streamFetch(
+      "/api/chat",
+      apiMessages,
+      (token) => { fullText += token; setStreamingText(fullText); },
+      () => {
+        setMessages(prev => [...displayMessages.filter(m => m.role !== "assistant" || prev.includes(m)), { role: "assistant", content: fullText }]);
+        setStreamingText("");
+        setLoading(false);
+      },
+      (err) => {
+        setMessages(prev => [...prev, { role: "assistant", content: `（${err}）` }]);
+        setStreamingText("");
+        setLoading(false);
+      }
+    );
   }
 
   if (status !== "authenticated") return null;
@@ -69,27 +72,19 @@ export default function Chat() {
           <div className={`bubble ${m.role === "user" ? "me" : "ai"}`} style={{ whiteSpace: "pre-line" }}>{m.content}</div>
         </div>
       ))}
-      {loading && (
+      {(loading || streamingText) && (
         <div className="msg-row">
           <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>
-          <div className="bubble ai">...</div>
+          <div className="bubble ai" style={{ whiteSpace: "pre-line" }}>{streamingText || "..."}</div>
         </div>
       )}
       <div ref={bottomRef} />
 
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--bg)", borderTop: "1px solid var(--line)", padding: "14px 16px" }}>
         <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", gap: 8 }}>
-          <input
-            className="input"
-            style={{ marginBottom: 0 }}
-            placeholder="说点什么..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-          />
-          <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send} disabled={loading}>
-            发送
-          </button>
+          <input className="input" style={{ marginBottom: 0 }} placeholder="说点什么..." value={input}
+            onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
+          <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send} disabled={loading}>发送</button>
         </div>
       </div>
     </div>

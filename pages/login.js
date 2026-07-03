@@ -70,7 +70,7 @@ export default function Login() {
   return (
     <div className="wrap">
       <div style={{ textAlign: "center", marginBottom: 26 }}>
-        <h1 style={{ fontSize: 22 }}>心情小驿站</h1>
+        <h1 style={{ fontSize: 22 }}>IStarMate</h1>
         <p style={{ color: "var(--ink-soft)", fontSize: 14, marginTop: 6 }}>
           {mode === "login" ? "欢迎回来" : mode === "register-email" ? "创建一个新账号" : "验证你的邮箱"}
         </p>

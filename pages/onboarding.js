@@ -60,7 +60,7 @@ export default function Onboarding() {
 
         {error && <p style={{ color: "var(--coral-deep)", fontSize: 13 }}>{error}</p>}
         <button className="btn primary" type="submit" disabled={loading}>
-          {loading ? "保存中..." : "下一步：心情自评 →"}
+          {loading ? "保存中..." : "下一步：情绪自评 →"}
         </button>
       </form>
     </div>

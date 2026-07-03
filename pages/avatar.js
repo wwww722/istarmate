@@ -35,7 +35,7 @@ export default function Avatar() {
       <h2 style={{ fontSize: 24, margin: "20px 0 4px" }}>{avatar.name}</h2>
       <p style={{ color: "var(--ink-soft)", fontSize: 14 }}>{avatar.name} #{avatar.code}</p>
       <p style={{ color: "var(--ink-soft)", fontSize: 13.5, marginTop: 18, lineHeight: 1.8 }}>
-        这是你在心情小驿站的代号。<br />每个代号都是独一无二的。
+        这是你在IStarMate的代号。<br />每个代号都是独一无二的。
       </p>
       <button className="btn primary" style={{ marginTop: 32 }} onClick={confirm} disabled={saving}>
         {saving ? "保存中..." : "就是这个！→"}
