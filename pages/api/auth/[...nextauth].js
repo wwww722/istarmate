@@ -1,4 +1,3 @@
-// pages/api/auth/[...nextauth].js
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
@@ -16,18 +15,15 @@ export const authOptions = {
         if (!credentials?.email || !credentials?.password) return null;
         const user = await getUserByEmail(credentials.email.trim().toLowerCase());
         if (!user) return null;
+        if (!user.email_verified) return null; // 未验证邮箱不能登录
         const ok = await bcrypt.compare(credentials.password, user.password_hash);
         if (!ok) return null;
         return { id: String(user.id), email: user.email };
       },
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-  },
+  pages: { signIn: "/login" },
+  session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
       if (user) token.userId = user.id;

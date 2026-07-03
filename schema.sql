@@ -39,3 +39,16 @@ CREATE TABLE IF NOT EXISTS scenario_logs (
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, scenario_date)
 );
+
+-- 邮箱验证码表（用于注册时验证邮箱真实性）
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL,
+  token TEXT NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- users表加email_verified字段
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
