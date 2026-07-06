@@ -95,7 +95,7 @@ export default function Questionnaire() {
     });
 
     setSubmitting(false);
-    router.push("/dashboard");
+    router.push("/questionnaire-result");
   }
 
   if (status !== "authenticated") return null;
