@@ -15,7 +15,7 @@ export const authOptions = {
         if (!credentials?.email || !credentials?.password) return null;
         const user = await getUserByEmail(credentials.email.trim().toLowerCase());
         if (!user) return null;
-        if (!user.email_verified) return null; // 未验证邮箱不能登录
+        // 去掉 email_verified 检查，直接验证密码
         const ok = await bcrypt.compare(credentials.password, user.password_hash);
         if (!ok) return null;
         return { id: String(user.id), email: user.email };
