@@ -42,6 +42,9 @@ export default async function handler(req, res) {
     ? "\n【安全红线】如果对话中出现自伤信号，立刻暂停剧情，温和关心TA，引导联系热线 400-161-9995。"
     : "";
 
+  const userTurns = messages.filter(m => m.role === "user" && !m.content.startsWith("（")).length;
+  const isWrapUp = userTurns >= 3; // 第3轮开始收尾
+
   const systemPrompt = `你正在主持IStarMate的"每日沉浸式小剧场"，今天的情境是："${scenario.title}"。
 
 【你要扮演的角色】${scenario.role}
@@ -50,16 +53,22 @@ export default async function handler(req, res) {
 【剧场规则】
 - 可以同时扮演场景里所有合理出现的角色，每个角色有独特的性格和说话方式
 - 在对白前标注角色名，比如：【小满】"哎你昨天去哪了..."
-- 适时加入括号场景描述帮助代入：（走廊里很吵，有人在推搡）
-- 留给用户反应空间，说完等用户回应，不要独白太长
-- 如果用户不知道说什么，给一个自然的提示
+- 适时加入括号场景描述帮助代入：（走廊里很吵）
+- 留给用户反应空间，**每次回复严格控制在2-3句话以内，不超过80字**，宁可短不要长
+
+【故事节奏——重要】
+这个小剧场目标在3-4轮用户回应内完成一个完整的故事弧：
+- 第1轮：建立场景，引出情绪钩子
+- 第2轮：深入情境，让用户有机会表达
+- 第3轮：推向高潮或转折
+${isWrapUp ? "- 【现在是收尾阶段】请在这一轮自然地给故事一个温暖的结尾，可以是角色说一句有力量的话、一个小小的和解，或者一个开放式但有余韵的收场。结尾后在括号里写：（今天的故事就到这里了 ✨）" : ""}
 
 【用户信息】
 ${profile?.nickname || "这位朋友"}，${profile?.age ? profile.age + "岁" : ""}，${profile?.gender || ""}
 最近需要留意：${concernLines || "整体状态平稳"}
 ${crisisNote}
 
-直接进入场景，不要说"我们开始了"。用场景描述+第一个角色的台词开始。`;
+直接进入场景，不要说"我们开始了"。`;
 
-  await streamSiliconFlow(res, systemPrompt, messages, 700);
+  await streamSiliconFlow(res, systemPrompt, messages, 200);
 }
