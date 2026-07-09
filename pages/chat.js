@@ -16,6 +16,7 @@ export default function Chat() {
   const [feedback, setFeedback] = useState(null); // null | 1 | -1
   const [showFeedback, setShowFeedback] = useState(false);
   const bottomRef = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -38,6 +39,12 @@ export default function Chat() {
     await runStream([{ role: "user", content: openingMsg }], []);
   }
 
+  function stopStream() {
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    setStreamingText("");
+    setLoading(false);
+  }
+
   async function send() {
     if (!input.trim() || loading) return;
     const next = [...messages, { role: "user", content: input }];
@@ -47,6 +54,8 @@ export default function Chat() {
   }
 
   async function runStream(apiMessages, displayMessages) {
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setStreamingText("");
     let fullText = "";
@@ -128,8 +137,12 @@ export default function Chat() {
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--bg)", borderTop: "1px solid var(--line)", padding: "14px 16px" }}>
         <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", gap: 8 }}>
           <input className="input" style={{ marginBottom: 0 }} placeholder="说点什么..."
-            value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
-          <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send} disabled={loading}>发送</button>
+            value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !loading && send()} />
+          {loading ? (
+            <button className="btn" style={{ width: "auto", padding: "0 14px", color: "var(--coral-deep)", borderColor: "var(--coral-deep)" }} onClick={stopStream}>■</button>
+          ) : (
+            <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send}>发送</button>
+          )}
         </div>
       </div>
     </div>

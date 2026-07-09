@@ -16,6 +16,7 @@ export default function Scenario() {
   const [generating, setGenerating] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [opened, setOpened] = useState(false);
+  const abortRef = useRef(null);
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -55,7 +56,13 @@ export default function Scenario() {
     }
   }
 
+  async function stopStream() {
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+  }
+
   async function runStream(apiMessages, displayMessages, scenarioOverride) {
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setStreamingText("");
     let fullText = "";
@@ -75,7 +82,8 @@ export default function Scenario() {
         setStreamingText("");
         setLoading(false);
       },
-      { scenario: currentScenario }
+      { scenario: currentScenario },
+      controller.signal
     );
   }
 
@@ -215,8 +223,12 @@ export default function Scenario() {
           <div style={{ maxWidth: 480, margin: "0 auto" }}>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="input" style={{ marginBottom: 0 }} placeholder="说点什么..."
-                value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
-              <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send} disabled={loading}>发送</button>
+                value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !loading && send()} />
+              {loading ? (
+                <button className="btn" style={{ width: "auto", padding: "0 16px", color: "var(--coral-deep)", borderColor: "var(--coral-deep)" }} onClick={stopStream}>■ 停止</button>
+              ) : (
+                <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send}>发送</button>
+              )}
             </div>
             <button className="btn" style={{ fontSize: 13 }} onClick={finishToday}>结束今天的小剧场</button>
           </div>
