@@ -59,6 +59,7 @@ export default function Scenario() {
     setLoading(true);
     setStreamingText("");
     let fullText = "";
+    const currentScenario = scenarioOverride || scenario;
     await streamFetch("/api/scenario-chat", apiMessages,
       (token) => { fullText += token; setStreamingText(fullText); },
       () => {
@@ -66,14 +67,15 @@ export default function Scenario() {
         setMessages(next);
         setStreamingText("");
         setLoading(false);
-        saveProgress(next, false, scenarioOverride || scenario);
+        saveProgress(next, false, currentScenario);
       },
       (err) => {
         const next = [...displayMessages, { role: "assistant", content: `（${err}）` }];
         setMessages(next);
         setStreamingText("");
         setLoading(false);
-      }
+      },
+      { scenario: currentScenario }
     );
   }
 
