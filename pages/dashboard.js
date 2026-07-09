@@ -21,9 +21,9 @@ export default function Dashboard() {
   const router = useRouter();
   const { status } = useSession();
   const [profile, setProfile] = useState(null);
-  const [scenario, setScenario] = useState(null);
+  const [scenarioTitle, setScenarioTitle] = useState("今天的故事");
   const [dayCount, setDayCount] = useState(1);
-  const [progress, setProgress] = useState(null);
+  const [scenarioDone, setScenarioDone] = useState(false);
   const [mood, setMood] = useState(null);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
   const [selectedMoodLabel, setSelectedMoodLabel] = useState("");
@@ -44,21 +44,22 @@ export default function Dashboard() {
     setLoading(true);
     const [pRes, sRes, cRes, qRes] = await Promise.all([
       fetch("/api/profile"),
-      fetch("/api/scenario"),
+      fetch("/api/scenario?preview=1"),  // 只拿预览信息，不触发AI生成
       fetch("/api/checkin"),
       fetch("/api/questionnaire"),
     ]);
+
+    if (!sRes.ok) { setLoading(false); router.push("/questionnaire"); return; }
+
     const pData = await pRes.json();
+    const sData = await sRes.json();
     const cData = await cRes.json();
     const qData = await qRes.json();
 
-    if (!sRes.ok) { setLoading(false); router.push("/questionnaire"); return; }
-    const sData = await sRes.json();
-
     setProfile(pData.profile);
-    setScenario(sData.scenario);
-    setDayCount(sData.dayCount);
-    setProgress(sData.progress);
+    setScenarioTitle(sData.scenarioTitle || "今天的故事");
+    setDayCount(sData.dayCount || 1);
+    setScenarioDone(sData.completed || false);
     setStreak(cData.streak || 0);
     setMoodLogs(cData.logs || []);
     setLastQuestionnaireDate(qData.questionnaire?.created_at || null);
@@ -75,15 +76,19 @@ export default function Dashboard() {
     const data = await r.json();
     if (data.newlyUnlocked?.length) setNewAchievements(data.newlyUnlocked);
     if (data.streak) setStreak(data.streak);
+    // 更新本地logs
+    const today = new Date().toISOString().slice(0, 10);
+    setMoodLogs(prev => {
+      const filtered = prev.filter(l => {
+        const d = typeof l.log_date === "string" ? l.log_date : new Date(l.log_date).toISOString().slice(0, 10);
+        return d !== today;
+      });
+      return [{ log_date: today, mood: m.id }, ...filtered];
+    });
     if (m.low) {
       setSelectedMoodLabel(m.label);
       setTimeout(() => setShowMoodPopup(true), 400);
     }
-  }
-
-  function goToChatWithMood() {
-    setShowMoodPopup(false);
-    router.push(`/chat?mood=${selectedMoodLabel}`);
   }
 
   if (status !== "authenticated") return null;
@@ -96,30 +101,26 @@ export default function Dashboard() {
     </div>
   );
 
-  const daysSinceQuestionnaire = daysSince(lastQuestionnaireDate);
-  const showReevalNotice = daysSinceQuestionnaire >= 14;
+  const daysSinceQ = daysSince(lastQuestionnaireDate);
+  const showReevalNotice = daysSinceQ >= 14;
 
   return (
     <div className="wrap">
-      {/* 重测提醒横幅 */}
+      {/* 重测提醒 */}
       {showReevalNotice && (
         <div style={{
           background: "var(--purple-light)", border: "1.5px solid var(--purple)",
           borderRadius: 14, padding: "12px 16px", marginBottom: 16,
-          display: "flex", alignItems: "center", justifyContent: "space-between"
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12
         }}>
           <div>
             <p style={{ fontSize: 13.5, fontWeight: 500, margin: "0 0 2px", color: "var(--purple-deep)" }}>
-              📊 距上次评估已过去 {daysSinceQuestionnaire} 天
+              📊 距上次评估已 {daysSinceQ} 天
             </p>
-            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>
-              状态可能有变化，重新做一次看看？
-            </p>
+            <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0 }}>状态可能有变化，重新做一次？</p>
           </div>
           <button className="btn primary" style={{ padding: "7px 14px", fontSize: 13, width: "auto", flexShrink: 0 }}
-            onClick={() => router.push("/questionnaire")}>
-            重新评估
-          </button>
+            onClick={() => router.push("/questionnaire")}>重新评估</button>
         </div>
       )}
 
@@ -132,15 +133,14 @@ export default function Dashboard() {
           </h2>
           <p style={{ color: "var(--ink-soft)", fontSize: 13 }}>
             第 {dayCount} 天
-            {streak >= 3 && <span style={{ marginLeft: 8, color: "var(--purple-deep)", fontWeight: 500 }}>🔥 {streak}天连续打卡</span>}
+            {streak >= 3 && <span style={{ marginLeft: 8, color: "var(--purple-deep)", fontWeight: 500 }}>🔥 {streak}天连续</span>}
           </p>
         </div>
-        {/* 设置按钮 */}
         <div style={{ position: "relative" }}>
           <button onClick={() => setShowSettings(!showSettings)} style={{
-            width: 38, height: 38, borderRadius: "50%",
-            background: "var(--purple-light)", border: "none", cursor: "pointer",
-            fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+            width: 38, height: 38, borderRadius: "50%", background: "var(--purple-light)",
+            border: "none", cursor: "pointer", fontSize: 18,
+            display: "flex", alignItems: "center", justifyContent: "center",
           }}>
             {profile?.avatar_emoji || "⚙️"}
           </button>
@@ -148,8 +148,8 @@ export default function Dashboard() {
             <>
               <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setShowSettings(false)} />
               <div style={{
-                position: "absolute", right: 0, top: 44, background: "#fff",
-                borderRadius: 14, border: "1px solid var(--line)", minWidth: 170,
+                position: "absolute", right: 0, top: 44, background: "#fff", borderRadius: 14,
+                border: "1px solid var(--line)", minWidth: 170,
                 boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 10, overflow: "hidden",
               }}>
                 {[
@@ -159,9 +159,9 @@ export default function Dashboard() {
                   { label: "🚪 退出登录", action: () => signOut({ callbackUrl: "/login" }), danger: true },
                 ].map((item, i) => (
                   <button key={i} onClick={() => { setShowSettings(false); item.action(); }} style={{
-                    display: "block", width: "100%", padding: "12px 16px",
-                    background: "transparent", border: "none", textAlign: "left",
-                    fontSize: 14, cursor: "pointer", color: item.danger ? "#D85A30" : "var(--ink)",
+                    display: "block", width: "100%", padding: "12px 16px", background: "transparent",
+                    border: "none", textAlign: "left", fontSize: 14, cursor: "pointer",
+                    color: item.danger ? "#D85A30" : "var(--ink)",
                     borderTop: i > 0 ? "1px solid var(--line)" : "none",
                   }}>
                     {item.label}
@@ -201,11 +201,11 @@ export default function Dashboard() {
       {/* 今日小剧场 */}
       <div className="gradient-card" onClick={() => router.push("/scenario")} style={{ marginBottom: 14 }}>
         <p style={{ fontSize: 12.5, opacity: 0.85, marginBottom: 6 }}>
-          {progress?.completed ? "今日小剧场 · 已完成 ✓" : "今日小剧场 · AI 即时生成"}
+          {scenarioDone ? "今日小剧场 · 已完成 ✓" : "今日小剧场 · AI 即时生成"}
         </p>
-        <h3 style={{ fontSize: 18, marginBottom: 6 }}>{scenario?.title || "今天的故事"}</h3>
+        <h3 style={{ fontSize: 18, marginBottom: 6 }}>{scenarioTitle}</h3>
         <p style={{ fontSize: 13.5, opacity: 0.9 }}>
-          {progress?.completed ? "今天的故事已经讲完啦，明天再来 ✨" : "点开看看今天发生了什么 →"}
+          {scenarioDone ? "今天的故事已经讲完啦，明天再来 ✨" : "点开看看今天发生了什么 →"}
         </p>
       </div>
 
@@ -232,13 +232,14 @@ export default function Dashboard() {
             <p style={{ color: "var(--ink-soft)", fontSize: 14.5, textAlign: "center", lineHeight: 1.7, marginBottom: 22 }}>
               能和我说说是什么让你有这种感觉吗？<br />不用说得很完整，说一点点也可以。
             </p>
-            <button className="btn primary" style={{ marginBottom: 10 }} onClick={goToChatWithMood}>说说看 →</button>
+            <button className="btn primary" style={{ marginBottom: 10 }} onClick={() => { setShowMoodPopup(false); router.push(`/chat?mood=${selectedMoodLabel}`); }}>
+              说说看 →
+            </button>
             <button className="btn" onClick={() => setShowMoodPopup(false)}>现在不想说</button>
           </div>
         </div>
       )}
 
-      {/* 成就弹窗 */}
       {newAchievements.length > 0 && (
         <AchievementPopup achievementIds={newAchievements} onClose={() => setNewAchievements([])} />
       )}
