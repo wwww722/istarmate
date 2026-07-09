@@ -156,6 +156,7 @@ export default function Dashboard() {
                   { label: "👤 我的资料", action: () => router.push("/onboarding") },
                   { label: "📊 重新做问卷", action: () => router.push("/questionnaire") },
                   { label: "🏆 我的成就", action: () => router.push("/achievements") },
+                  { label: "📈 每周报告", action: () => router.push("/weekly-report") },
                   { label: "🚪 退出登录", action: () => signOut({ callbackUrl: "/login" }), danger: true },
                 ].map((item, i) => (
                   <button key={i} onClick={() => { setShowSettings(false); item.action(); }} style={{

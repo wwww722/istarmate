@@ -13,9 +13,13 @@ export default function Scenario() {
   const [streamingText, setStreamingText] = useState("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(true); // AI生成场景中
+  const [generating, setGenerating] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [opened, setOpened] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [questionnaireData, setQuestionnaireData] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -26,29 +30,28 @@ export default function Scenario() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText]);
+  }, [messages, streamingText, summary]);
 
   async function loadAndOpen() {
     setGenerating(true);
-    const r = await fetch("/api/scenario");
-    const data = await r.json();
-    if (!r.ok) {
+    const [sRes, qRes] = await Promise.all([fetch("/api/scenario"), fetch("/api/questionnaire")]);
+    const data = await sRes.json();
+    const qData = await qRes.json();
+
+    if (!sRes.ok) {
       setGenerating(false);
       if (data.error === "请先完成问卷") router.push("/questionnaire");
       return;
     }
     setScenario(data.scenario);
     setCompleted(data.progress.completed || false);
+    setQuestionnaireData(qData.questionnaire);
     setGenerating(false);
 
     if (data.progress.choices?.length > 0) {
       setMessages(data.progress.choices);
     } else {
-      await runStream(
-        [{ role: "user", content: "（开始今天的剧场，按角色身份自然开场）" }],
-        [],
-        data.scenario
-      );
+      await runStream([{ role: "user", content: "（开始今天的剧场，按角色身份自然开场）" }], [], data.scenario);
     }
   }
 
@@ -56,9 +59,7 @@ export default function Scenario() {
     setLoading(true);
     setStreamingText("");
     let fullText = "";
-    await streamFetch(
-      "/api/scenario-chat",
-      apiMessages,
+    await streamFetch("/api/scenario-chat", apiMessages,
       (token) => { fullText += token; setStreamingText(fullText); },
       () => {
         const next = [...displayMessages, { role: "assistant", content: fullText }];
@@ -89,47 +90,78 @@ export default function Scenario() {
     await fetch("/api/scenario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        scenarioId: s?.id || "ai",
-        stepIndex: msgs.length,
-        choices: msgs,
-        completed: isCompleted,
-        scenarioMeta: s, // 把场景信息也存起来
-      }),
+      body: JSON.stringify({ scenarioId: s?.id || "ai", stepIndex: msgs.length, choices: msgs, completed: isCompleted, scenarioMeta: s }),
     });
   }
 
-  function finishToday() {
+  async function finishToday() {
     setCompleted(true);
     saveProgress(messages, true);
+    // AI生成今日收获总结
+    if (messages.length >= 2) {
+      setSummaryLoading(true);
+      try {
+        const userMsgs = messages.filter(m => m.role === "user").map(m => m.content).join("\n");
+        const r = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.NEXT_PUBLIC_SILICONFLOW_KEY || ""}` },
+          body: JSON.stringify({
+            model: "Pro/zai-org/GLM-5.1",
+            messages: [{ role: "user", content: `用户在今天的小剧场"${scenario?.title}"中说了这些话：\n${userMsgs}\n\n请用1-2句温暖的话总结TA今天表达的情绪或收获，像一个朋友在说话，不要用"你"来开头，直接说感受。` }],
+            max_tokens: 80,
+            temperature: 0.5,
+          }),
+        });
+        const data = await r.json();
+        const s = data?.choices?.[0]?.message?.content?.trim();
+        if (s) setSummary(s);
+      } catch {}
+      setSummaryLoading(false);
+    }
   }
+
+  async function submitFeedback(rating) {
+    setFeedback(rating);
+    await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context: "scenario", rating }),
+    });
+  }
+
+  // 找出最弱的维度
+  const weakDomain = questionnaireData?.domains?.filter(d => d.level >= 1).sort((a, b) => b.level - a.level)[0];
 
   if (status !== "authenticated") return null;
 
-  if (generating) {
-    return (
-      <div className="wrap" style={{ textAlign: "center", paddingTop: 80 }}>
-        <div style={{ fontSize: 36, marginBottom: 16 }}>✨</div>
-        <p style={{ color: "var(--ink-soft)", fontSize: 14.5 }}>今天的小剧场正在生成中...</p>
-        <ThinkingDots />
-      </div>
-    );
-  }
+  if (generating) return (
+    <div className="wrap" style={{ textAlign: "center", paddingTop: 80 }}>
+      <div style={{ fontSize: 36, marginBottom: 16 }}>✨</div>
+      <p style={{ color: "var(--ink-soft)", fontSize: 14.5 }}>今天的小剧场正在生成中...</p>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}><ThinkingDots /></div>
+    </div>
+  );
 
   if (!scenario) return null;
 
   return (
     <div className="wrap" style={{ paddingBottom: completed ? 40 : 140 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }}
-          style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }} style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
         <div>
           <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>{scenario.title}</p>
           <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0 }}>{scenario.role} · AI 对话</p>
         </div>
       </div>
 
-      <div style={{ marginTop: 18 }}>
+      {/* 联动透明提示 */}
+      {weakDomain && !completed && messages.length === 0 && (
+        <div style={{ background: "var(--purple-light)", borderRadius: 10, padding: "8px 14px", marginBottom: 12, fontSize: 12.5, color: "var(--purple-deep)" }}>
+          ✨ 今天的场景和你最近的「{weakDomain.name}」有关
+        </div>
+      )}
+
+      <div style={{ marginTop: 12 }}>
         {messages.map((m, i) => (
           <div key={i} className={`msg-row ${m.role === "user" ? "me" : ""}`}>
             {m.role === "assistant" && <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>}
@@ -141,9 +173,36 @@ export default function Scenario() {
         {(loading || streamingText) && (
           <div className="msg-row">
             <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>
-            <div className="bubble ai" style={{ whiteSpace: "pre-line" }}>
-              {streamingText || <ThinkingDots />}
+            <div className="bubble ai">{streamingText || <ThinkingDots />}</div>
+          </div>
+        )}
+
+        {/* 今日收获总结 */}
+        {completed && (
+          <div style={{ margin: "20px 0" }}>
+            <div className="card" style={{ background: "linear-gradient(135deg, #f8f6ff 0%, #ede9fb 100%)", border: "1.5px solid var(--purple)" }}>
+              <p style={{ fontSize: 13, color: "var(--purple-deep)", fontWeight: 500, marginBottom: 6 }}>✨ 今天的收获</p>
+              {summaryLoading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}><ThinkingDots /><span style={{ fontSize: 13, color: "var(--ink-soft)" }}>星伴正在整理...</span></div>
+              ) : (
+                <p style={{ fontSize: 14.5, color: "var(--ink)", lineHeight: 1.7, margin: 0 }}>{summary || "今天能来这里聊聊，本身就是很好的一步。"}</p>
+              )}
             </div>
+
+            {/* 反馈 */}
+            <div style={{ textAlign: "center", padding: "14px 0", color: "var(--ink-soft)", fontSize: 13.5 }}>
+              {feedback === null ? (
+                <>
+                  <span>这次体验怎么样？</span>
+                  <button onClick={() => submitFeedback(1)} style={{ margin: "0 8px", background: "none", border: "none", fontSize: 22, cursor: "pointer" }}>👍</button>
+                  <button onClick={() => submitFeedback(-1)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer" }}>👎</button>
+                </>
+              ) : (
+                <span>{feedback === 1 ? "谢谢！明天见 😊" : "收到，我们会继续改进 💪"}</span>
+              )}
+            </div>
+
+            <button className="btn primary" onClick={() => router.push("/dashboard")}>回到今天</button>
           </div>
         )}
         <div ref={bottomRef} />
@@ -154,19 +213,12 @@ export default function Scenario() {
           <div style={{ maxWidth: 480, margin: "0 auto" }}>
             <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
               <input className="input" style={{ marginBottom: 0 }} placeholder="说点什么..."
-                value={input} onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()} />
-              <button className="btn primary" style={{ width: "auto", padding: "0 18px" }}
-                onClick={send} disabled={loading}>发送</button>
+                value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} />
+              <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send} disabled={loading}>发送</button>
             </div>
             <button className="btn" style={{ fontSize: 13 }} onClick={finishToday}>结束今天的小剧场</button>
           </div>
         </div>
-      )}
-      {completed && (
-        <button className="btn primary" style={{ marginTop: 20 }} onClick={() => router.push("/dashboard")}>
-          回到今天
-        </button>
       )}
     </div>
   );

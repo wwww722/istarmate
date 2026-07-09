@@ -80,3 +80,32 @@ CREATE TABLE IF NOT EXISTS achievements (
   unlocked_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, achievement_id)
 );
+
+-- 星伴对话摘要（记忆功能）
+CREATE TABLE IF NOT EXISTS chat_summaries (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  summary TEXT NOT NULL,
+  session_date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 每周情绪报告
+CREATE TABLE IF NOT EXISTS weekly_reports (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  week_start DATE NOT NULL,
+  report JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, week_start)
+);
+
+-- 用户反馈
+CREATE TABLE IF NOT EXISTS feedback_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  context TEXT NOT NULL, -- 'scenario' or 'chat'
+  rating INTEGER NOT NULL, -- 1=thumbsup, -1=thumbsdown
+  context_date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
