@@ -117,24 +117,27 @@ export default function Scenario() {
   async function finishToday() {
     setCompleted(true);
     saveProgress(messages, true);
-    // AI生成今日收获总结
+    // 成就触发
+    fetch("/api/achievement-trigger", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trigger: "first_scenario" }),
+    }).then(r => r.json()).then(data => {
+      if (data.newlyUnlocked?.length) {
+        // 可以在这里显示成就弹窗，暂时先存localStorage供仪表盘读取
+        localStorage.setItem("pending_achievements", JSON.stringify(data.newlyUnlocked));
+      }
+    }).catch(() => {});
+    // AI生成今日收获总结（走后端API，前端无法直接访问API Key）
     if (messages.length >= 2) {
       setSummaryLoading(true);
       try {
-        const userMsgs = messages.filter(m => m.role === "user").map(m => m.content).join("\n");
-        const r = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
+        const r = await fetch("/api/scenario-summary", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.NEXT_PUBLIC_SILICONFLOW_KEY || ""}` },
-          body: JSON.stringify({
-            model: "Pro/zai-org/GLM-5.1",
-            messages: [{ role: "user", content: `用户在今天的小剧场"${scenario?.title}"中说了这些话：\n${userMsgs}\n\n请用1-2句温暖的话总结TA今天表达的情绪或收获，像一个朋友在说话，不要用"你"来开头，直接说感受。` }],
-            max_tokens: 80,
-            temperature: 0.5,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages, scenarioTitle: scenario?.title }),
         });
         const data = await r.json();
-        const s = data?.choices?.[0]?.message?.content?.trim();
-        if (s) setSummary(s);
+        if (data.summary) setSummary(data.summary);
       } catch {}
       setSummaryLoading(false);
     }

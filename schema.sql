@@ -109,3 +109,13 @@ CREATE TABLE IF NOT EXISTS feedback_logs (
   context_date DATE DEFAULT CURRENT_DATE,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- AI课程代码片段保存
+CREATE TABLE IF NOT EXISTS code_snippets (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  code TEXT NOT NULL,
+  language TEXT DEFAULT 'html',
+  created_at TIMESTAMP DEFAULT NOW()
+);

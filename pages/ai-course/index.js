@@ -56,7 +56,7 @@ export default function AiCourse() {
           开始做我的第一个网站 →
         </button>
         <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/projects")}>
-          看看别人做了什么（示例项目）
+          我的项目 →
         </button>
       </div>
 

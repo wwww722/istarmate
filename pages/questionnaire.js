@@ -101,6 +101,11 @@ export default function Questionnaire() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ domains, crisisTriggered }),
     });
+    // 首次问卷成就
+    fetch("/api/achievement-trigger", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trigger: "first_questionnaire" }),
+    }).catch(() => {});
 
     setSubmitting(false);
     router.push("/questionnaire-result");

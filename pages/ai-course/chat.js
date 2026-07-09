@@ -13,6 +13,7 @@ export default function AiCourseChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [opened, setOpened] = useState(false);
+  const [savePopup, setSavePopup] = useState(null); // {code, lang}
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -46,6 +47,20 @@ export default function AiCourseChat() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
+
+  async function saveSnippet(code, lang) {
+    const title = prompt("给这段代码起个名字：", "我的网站 " + new Date().toLocaleDateString());
+    if (!title) return;
+    const r = await fetch("/api/code-snippets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, code, language: lang }),
+    });
+    if (r.ok) {
+      alert("✅ 已保存！可以在"我的项目"里找到。");
+    }
+    setSavePopup(null);
+  }
 
   async function openChat() {
     await runStream([{ role: "user", content: "开始" }], []);

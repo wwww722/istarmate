@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
 import { AchievementPopup, SkeletonCard } from "../components/PageTransition";
 import MoodChart from "../components/MoodChart";
+import StarOrb from "../components/StarOrb";
 
 const MOODS = [
   { id: "great", emoji: "😄", label: "很好",  low: false },
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [streak, setStreak] = useState(0);
   const [moodLogs, setMoodLogs] = useState([]);
   const [lastQuestionnaireDate, setLastQuestionnaireDate] = useState(null);
+  const [aiCourseActive, setAiCourseActive] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -42,11 +44,12 @@ export default function Dashboard() {
 
   async function load() {
     setLoading(true);
-    const [pRes, sRes, cRes, qRes] = await Promise.all([
+    const [pRes, sRes, cRes, qRes, aiRes] = await Promise.all([
       fetch("/api/profile"),
       fetch("/api/scenario?preview=1"),  // 只拿预览信息，不触发AI生成
       fetch("/api/checkin"),
       fetch("/api/questionnaire"),
+      fetch("/api/ai-course-session"),
     ]);
 
     if (!sRes.ok) { setLoading(false); router.push("/questionnaire"); return; }
@@ -63,6 +66,8 @@ export default function Dashboard() {
     setStreak(cData.streak || 0);
     setMoodLogs(cData.logs || []);
     setLastQuestionnaireDate(qData.questionnaire?.created_at || null);
+    const aiData = await aiRes.json();
+    setAiCourseActive(aiData.messages?.length > 1);
     setLoading(false);
   }
 
@@ -196,6 +201,18 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 今日状态整合 */}
+      {aiCourseActive && (
+        <div className="card" style={{ marginBottom: 16, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}
+          onClick={() => router.push("/ai-course/chat")} style={{ cursor: "pointer", marginBottom: 16 }}>
+          <div style={{ fontSize: 28 }}>💻</div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13.5, fontWeight: 500, margin: "0 0 2px" }}>AI 素养课程进行中</p>
+            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>点击继续上次的对话 →</p>
+          </div>
+        </div>
+      )}
+
       {/* 心情折线图 */}
       {moodLogs.length > 0 && <MoodChart logs={moodLogs} />}
 
@@ -239,6 +256,8 @@ export default function Dashboard() {
       {newAchievements.length > 0 && (
         <AchievementPopup achievementIds={newAchievements} onClose={() => setNewAchievements([])} />
       )}
+
+      <StarOrb moodToday={mood} />
     </div>
   );
 }

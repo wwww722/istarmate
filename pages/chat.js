@@ -74,6 +74,10 @@ export default function Chat() {
         setLoading(false);
         // 超过4轮对话后显示反馈
         if (next.filter(m => m.role === "user").length >= 3) setShowFeedback(true);
+        // 首次聊天成就
+        if (next.filter(m => m.role === "assistant").length === 1) {
+          fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_chat" }) });
+        }
       },
       (err) => {
         setMessages([...displayMessages, { role: "assistant", content: `（${err}）` }]);
