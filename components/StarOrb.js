@@ -37,6 +37,7 @@ export default function StarOrb() {
   const [orbActive, setOrbActive] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const abortRef = useRef(null);
 
   const hidden = HIDDEN_PATHS.includes(router.pathname) || status !== "authenticated";
 
@@ -58,6 +59,11 @@ export default function StarOrb() {
       setInitialized(true);
       await runStream([{ role: "user", content: "（以星伴身份，用一句温暖简短的话打个招呼，问问我现在怎么样——不要用固定公式，要有新鲜感）" }], []);
     }
+  }
+
+  function stopStream() {
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    setLoading(false);
   }
 
   async function runStream(apiMessages, displayMessages) {
@@ -244,9 +250,12 @@ export default function StarOrb() {
                     fontFamily: "inherit", color: "var(--ink)",
                   }}
                 />
+                {loading ? (
+                  <button onClick={stopStream} style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(201,74,74,0.15)", color: "var(--coral-deep)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>⏹</button>
+                ) : (
                 <button
                   onClick={send}
-                  disabled={loading || !input.trim()}
+                  disabled={!input.trim()}
                   style={{
                     width: 36, height: 36, borderRadius: "50%", border: "none",
                     background: loading || !input.trim()
@@ -259,6 +268,7 @@ export default function StarOrb() {
                     boxShadow: loading || !input.trim() ? "none" : "0 4px 12px rgba(124,111,224,0.35)",
                   }}
                 >↑</button>
+                )}
               </div>
             </div>
           </div>

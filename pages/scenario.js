@@ -22,6 +22,7 @@ export default function Scenario() {
   const [feedback, setFeedback] = useState(null);
   const [questionnaireData, setQuestionnaireData] = useState(null);
   const bottomRef = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -58,6 +59,15 @@ export default function Scenario() {
 
   async function stopStream() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+  }
+
+  function stopStream() {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    setLoading(false);
+    setStreamingText(prev => prev || "");
   }
 
   async function runStream(apiMessages, displayMessages, scenarioOverride) {

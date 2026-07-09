@@ -43,6 +43,11 @@ export default async function handler(req, res) {
     : "";
 
   const userTurns = messages.filter(m => m.role === "user" && !m.content.startsWith("（")).length;
+
+  // 根据压力维度判断用户可能的耐心程度——压力高的用户回复要更短
+  const stressLevel = (questionnaire?.domains || []).find(d => d.key === "stress")?.level || 0;
+  const maxChars = stressLevel >= 2 ? 60 : stressLevel === 1 ? 80 : 100;
+  const maxTok = stressLevel >= 2 ? 150 : 200;
   const isWrapUp = userTurns >= 3; // 第3轮开始收尾
 
   const systemPrompt = `你正在主持IStarMate的"每日沉浸式小剧场"，今天的情境是："${scenario.title}"。
@@ -54,7 +59,7 @@ export default async function handler(req, res) {
 - 可以同时扮演场景里所有合理出现的角色，每个角色有独特的性格和说话方式
 - 在对白前标注角色名，比如：【小满】"哎你昨天去哪了..."
 - 适时加入括号场景描述帮助代入：（走廊里很吵）
-- 留给用户反应空间，**每次回复严格控制在2-3句话以内，不超过80字**，宁可短不要长
+- 留给用户反应空间，每次回复严格控制在2-3句话以内，不超过${maxChars}字，宁可短不要长
 
 【故事节奏——重要】
 这个小剧场目标在3-4轮用户回应内完成一个完整的故事弧：
@@ -70,5 +75,5 @@ ${crisisNote}
 
 直接进入场景，不要说"我们开始了"。`;
 
-  await streamSiliconFlow(res, systemPrompt, messages, 200);
+  await streamSiliconFlow(res, systemPrompt, messages, maxTok);
 }
