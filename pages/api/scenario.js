@@ -3,7 +3,6 @@ import { authOptions } from "./auth/[...nextauth]";
 import { getLatestQuestionnaire, getScenarioLog, getScenarioHistory, upsertScenarioProgress } from "../../lib/db";
 import { todayDateStr } from "../../lib/scenarios";
 
-// AI生成今日场景（只在用户真正点进小剧场时调用，不在仪表盘加载时调用）
 async function generateTodayScenario(questionnaire, dateStr) {
   const domains = questionnaire?.domains || [];
   const weak = domains.filter(d => d.level >= 1).sort((a, b) => b.level - a.level);
@@ -15,10 +14,8 @@ async function generateTodayScenario(questionnaire, dateStr) {
 今天是第 ${dayIndex % 365 + 1} 天。
 ${focusDomain ? `用户最近"${focusDomain.name}"需要关注（${focusDomain.desc}）` : "用户整体状态平稳"}
 
-用JSON格式回复，不要有其他文字：
-{"id":"场景ID(英文字母数字)","title":"场景标题(4-10字)","role":"扮演角色","setup":"场景背景(2-4句,第二人称,生动具体)"}
-
-要求：贴近青少年真实生活，和关注维度自然关联，有画面感，结尾留一个让用户想回应的钩子。`;
+只用JSON格式回复，不要有其他文字：
+{"id":"场景ID(英文字母数字)","title":"场景标题(4-10字)","role":"扮演角色","setup":"场景背景(2-4句,第二人称,生动具体,结尾留钩子)"}`;
 
   try {
     const r = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
@@ -59,16 +56,14 @@ export default async function handler(req, res) {
     const q = await getLatestQuestionnaire(userId);
     if (!q) return res.status(400).json({ error: "请先完成问卷" });
 
-    const history = await getScenarioHistory(userId, 365);
-    const completedDays = history.filter(h => h.completed).length;
     const log = await getScenarioLog(userId, dateStr);
+    const choices = Array.isArray(log?.choices) ? log.choices : [];
+    const cachedMeta = choices.find(c => c && c._scenarioMeta)?._scenarioMeta;
 
-    // 检查今天是否已有缓存的场景
-    const choices = log?.choices || [];
-    const cachedMeta = choices.find?.(c => c && c._scenarioMeta)?._scenarioMeta;
-
-    // 如果仪表盘请求（带 preview=1 参数），只返回基础信息，不生成场景
+    // preview模式：仪表盘/首页调用，只返回基础信息，不触发AI生成
     if (req.query.preview === "1") {
+      const history = await getScenarioHistory(userId, 365);
+      const completedDays = history.filter(h => h.completed).length;
       return res.status(200).json({
         scenarioTitle: cachedMeta?.title || "今天的故事",
         dayCount: completedDays + 1,
@@ -76,7 +71,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // 用户真正进入小剧场，才生成场景
+    // 完整模式：用户进入小剧场页面，按需生成场景
+    const history = await getScenarioHistory(userId, 365);
+    const completedDays = history.filter(h => h.completed).length;
+
     let scenario = cachedMeta;
     if (!scenario) {
       const questionnaire = { domains: q.domains, crisisTriggered: q.crisis_triggered };

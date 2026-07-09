@@ -23,7 +23,7 @@ export default function Home() {
       router.push("/avatar");
       return;
     }
-    const sRes = await fetch("/api/scenario");
+    const sRes = await fetch("/api/scenario?preview=1");
     if (sRes.status === 400) {
       router.push("/questionnaire");
       return;
