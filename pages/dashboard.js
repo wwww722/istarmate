@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
 import { AchievementPopup, SkeletonCard } from "../components/PageTransition";
+import MoodChart from "../components/MoodChart";
 
 const MOODS = [
   { id: "great", emoji: "😄", label: "很好",  low: false },
@@ -10,6 +11,11 @@ const MOODS = [
   { id: "down",  emoji: "😔", label: "低落",  low: true  },
   { id: "bad",   emoji: "😣", label: "很差",  low: true  },
 ];
+
+function daysSince(dateStr) {
+  if (!dateStr) return 999;
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -25,6 +31,8 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false);
   const [newAchievements, setNewAchievements] = useState([]);
   const [streak, setStreak] = useState(0);
+  const [moodLogs, setMoodLogs] = useState([]);
+  const [lastQuestionnaireDate, setLastQuestionnaireDate] = useState(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -34,20 +42,26 @@ export default function Dashboard() {
 
   async function load() {
     setLoading(true);
-    const [pRes, sRes, cRes] = await Promise.all([
+    const [pRes, sRes, cRes, qRes] = await Promise.all([
       fetch("/api/profile"),
       fetch("/api/scenario"),
       fetch("/api/checkin"),
+      fetch("/api/questionnaire"),
     ]);
     const pData = await pRes.json();
     const cData = await cRes.json();
+    const qData = await qRes.json();
+
     if (!sRes.ok) { setLoading(false); router.push("/questionnaire"); return; }
     const sData = await sRes.json();
+
     setProfile(pData.profile);
     setScenario(sData.scenario);
     setDayCount(sData.dayCount);
     setProgress(sData.progress);
     setStreak(cData.streak || 0);
+    setMoodLogs(cData.logs || []);
+    setLastQuestionnaireDate(qData.questionnaire?.created_at || null);
     setLoading(false);
   }
 
@@ -82,9 +96,34 @@ export default function Dashboard() {
     </div>
   );
 
+  const daysSinceQuestionnaire = daysSince(lastQuestionnaireDate);
+  const showReevalNotice = daysSinceQuestionnaire >= 14;
+
   return (
     <div className="wrap">
-      {/* 顶部 */}
+      {/* 重测提醒横幅 */}
+      {showReevalNotice && (
+        <div style={{
+          background: "var(--purple-light)", border: "1.5px solid var(--purple)",
+          borderRadius: 14, padding: "12px 16px", marginBottom: 16,
+          display: "flex", alignItems: "center", justifyContent: "space-between"
+        }}>
+          <div>
+            <p style={{ fontSize: 13.5, fontWeight: 500, margin: "0 0 2px", color: "var(--purple-deep)" }}>
+              📊 距上次评估已过去 {daysSinceQuestionnaire} 天
+            </p>
+            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>
+              状态可能有变化，重新做一次看看？
+            </p>
+          </div>
+          <button className="btn primary" style={{ padding: "7px 14px", fontSize: 13, width: "auto", flexShrink: 0 }}
+            onClick={() => router.push("/questionnaire")}>
+            重新评估
+          </button>
+        </div>
+      )}
+
+      {/* 顶部用户信息 */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <p style={{ color: "var(--ink-soft)", fontSize: 13, marginBottom: 2 }}>你好，{profile?.nickname}</p>
@@ -156,12 +195,15 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 心情折线图 */}
+      {moodLogs.length > 0 && <MoodChart logs={moodLogs} />}
+
       {/* 今日小剧场 */}
       <div className="gradient-card" onClick={() => router.push("/scenario")} style={{ marginBottom: 14 }}>
         <p style={{ fontSize: 12.5, opacity: 0.85, marginBottom: 6 }}>
-          {progress?.completed ? "今日小剧场 · 已完成 ✓" : "今日小剧场 · 6分钟"}
+          {progress?.completed ? "今日小剧场 · 已完成 ✓" : "今日小剧场 · AI 即时生成"}
         </p>
-        <h3 style={{ fontSize: 18, marginBottom: 6 }}>{scenario?.title}</h3>
+        <h3 style={{ fontSize: 18, marginBottom: 6 }}>{scenario?.title || "今天的故事"}</h3>
         <p style={{ fontSize: 13.5, opacity: 0.9 }}>
           {progress?.completed ? "今天的故事已经讲完啦，明天再来 ✨" : "点开看看今天发生了什么 →"}
         </p>
