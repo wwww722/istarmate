@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { streamFetch } from "../lib/useStreamChat";
+import { ThinkingDots } from "../components/PageTransition";
 import { renderMarkdown } from "../lib/renderMarkdown";
 
 export default function Scenario() {
@@ -113,7 +114,7 @@ export default function Scenario() {
         {(loading || streamingText) && (
           <div className="msg-row">
             <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>
-            <div className="bubble ai" style={{ whiteSpace: "pre-line" }}>{streamingText || "..."}</div>
+            <div className="bubble ai" style={{ whiteSpace: "pre-line" }}>{streamingText || <ThinkingDots />}</div>
           </div>
         )}
         <div ref={bottomRef} />

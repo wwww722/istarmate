@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { streamFetch } from "../../lib/useStreamChat";
 import { renderMarkdown } from "../../lib/renderMarkdown";
+import { ThinkingDots } from "../../components/PageTransition";
 
 export default function AiCourseChat() {
   const router = useRouter();
@@ -17,9 +18,30 @@ export default function AiCourseChat() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
-    if (status === "authenticated" && !opened) { setOpened(true); openChat(); }
+    if (status === "authenticated" && !opened) { setOpened(true); loadHistory(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  async function loadHistory() {
+    // 先尝试加载历史对话
+    const r = await fetch("/api/ai-course-session");
+    const data = await r.json();
+    if (data.messages?.length > 1) {
+      // 有历史记录，直接恢复
+      setMessages(data.messages);
+    } else {
+      // 没有历史，开新对话
+      openChat();
+    }
+  }
+
+  async function saveHistory(msgs) {
+    await fetch("/api/ai-course-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: msgs }),
+    });
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,9 +60,11 @@ export default function AiCourseChat() {
       apiMessages,
       (token) => { fullText += token; setStreamingText(fullText); },
       () => {
-        setMessages([...displayMessages, { role: "assistant", content: fullText }]);
+        const next = [...displayMessages, { role: "assistant", content: fullText }];
+        setMessages(next);
         setStreamingText("");
         setLoading(false);
+        saveHistory(next); // 保存到数据库
       },
       (err) => {
         setMessages([...displayMessages, { role: "assistant", content: `（${err}）` }]);
@@ -84,7 +108,11 @@ export default function AiCourseChat() {
           <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>帮你做出第一个网站</p>
         </div>
         <button
-          onClick={() => { setMessages([]); setOpened(false); setTimeout(() => { setOpened(true); openChat(); }, 100); }}
+          onClick={() => {
+          setMessages([]); setOpened(false);
+          fetch("/api/ai-course-session", { method: "DELETE" });
+          setTimeout(() => { setOpened(true); openChat(); }, 100);
+        }}
           style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-soft)", background: "transparent", border: "1px solid var(--line)", padding: "5px 12px", borderRadius: 8, cursor: "pointer" }}
         >
           新对话
@@ -106,7 +134,7 @@ export default function AiCourseChat() {
         {loading && !streamingText && (
           <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--purple-light)", display: "flex", alignItems: "center", justifyContent: "center" }}>🤖</div>
-            <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: "4px 16px 16px 16px", padding: "12px 16px", color: "var(--ink-soft)" }}>正在思考...</div>
+            <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: "4px 16px 16px 16px", padding: "12px 16px", color: "var(--ink-soft)" }}><ThinkingDots /></div>
           </div>
         )}
         <div ref={bottomRef} style={{ height: 20 }} />

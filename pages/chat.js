@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { streamFetch } from "../lib/useStreamChat";
 import { renderMarkdown } from "../lib/renderMarkdown";
+import { ThinkingDots } from "../components/PageTransition";
 
 export default function Chat() {
   const router = useRouter();
@@ -88,7 +89,7 @@ export default function Chat() {
         <div className="msg-row">
           <span style={{ fontSize: 20, marginRight: 8 }}>💟</span>
           <div className="bubble ai" style={{ whiteSpace: "pre-line" }}>
-            {streamingText || "..."}
+            {streamingText || <ThinkingDots />}
           </div>
         </div>
       )}

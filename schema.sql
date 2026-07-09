@@ -52,3 +52,31 @@ CREATE TABLE IF NOT EXISTS email_verifications (
 
 -- users表加email_verified字段
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
+
+-- 每日心情打卡记录
+CREATE TABLE IF NOT EXISTS mood_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  log_date DATE NOT NULL,
+  mood TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, log_date)
+);
+
+-- AI课程对话历史（每个用户保存最近一段对话）
+CREATE TABLE IF NOT EXISTS ai_course_sessions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  messages JSONB NOT NULL DEFAULT '[]',
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id)
+);
+
+-- 成就记录
+CREATE TABLE IF NOT EXISTS achievements (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  achievement_id TEXT NOT NULL,
+  unlocked_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, achievement_id)
+);

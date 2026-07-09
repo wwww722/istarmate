@@ -30,8 +30,9 @@ const QUESTIONS = [
 const OPTIONS = [
   { label: "几乎没有", v: 0 },
   { label: "偶尔有一点", v: 1 },
-  { label: "经常这样", v: 2 },
-  { label: "几乎每天都是", v: 3 },
+  { label: "间歇性发生", v: 2 },
+  { label: "经常这样", v: 3 },
+  { label: "几乎每天都是", v: 4 },
 ];
 
 export default function Questionnaire() {
@@ -77,12 +78,12 @@ export default function Questionnaire() {
     Object.keys(DOMAIN_META).forEach((k) => { sums[k] = 0; counts[k] = 0; });
     QUESTIONS.forEach((qq, i) => {
       let v = answers[i] ?? 0;
-      if (qq.reverse) v = 3 - v;
+      if (qq.reverse) v = 4 - v;
       sums[qq.d] += v;
       counts[qq.d] += 1;
     });
     const domains = Object.keys(DOMAIN_META).map((key) => {
-      const pct = Math.round((sums[key] / (counts[key] * 3)) * 100);
+      const pct = Math.round((sums[key] / (counts[key] * 4)) * 100);
       const level = pct <= 33 ? 0 : pct <= 66 ? 1 : 2;
       const desc = level === 0 ? DOMAIN_META[key].low : level === 1 ? DOMAIN_META[key].mid : DOMAIN_META[key].high;
       return { key, name: DOMAIN_META[key].name, level, pct, desc };
@@ -129,16 +130,28 @@ export default function Questionnaire() {
         {OPTIONS.map((o) => (
           <div
             key={o.v}
-            className="choice-card"
-            style={{
-              padding: "12px 14px",
-              marginBottom: 8,
-              borderColor: answers[current] === o.v ? "var(--coral)" : "var(--line)",
-              background: answers[current] === o.v ? "#FFF6F4" : "#fff",
-            }}
             onClick={() => select(o.v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "11px 14px",
+              marginBottom: 8,
+              borderRadius: 12,
+              border: `1.5px solid ${answers[current] === o.v ? "var(--purple)" : "var(--line)"}`,
+              background: answers[current] === o.v ? "var(--purple-light)" : "#fff",
+              cursor: "pointer",
+              transition: "all .15s",
+            }}
           >
-            {o.label}
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+              border: `2px solid ${answers[current] === o.v ? "var(--purple)" : "var(--line)"}`,
+              background: answers[current] === o.v ? "var(--purple)" : "transparent",
+            }} />
+            <span style={{ fontSize: 14.5, color: answers[current] === o.v ? "var(--purple-deep)" : "var(--ink)" }}>
+              {o.label}
+            </span>
           </div>
         ))}
       </div>
