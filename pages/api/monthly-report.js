@@ -1,21 +1,11 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
-import { getMoodLogs, getRecentChatSummaries, getProfile, getMonthlyReports } from "../../lib/db";
-import { sql } from "@neondatabase/serverless";
+import { getMoodLogs, getRecentChatSummaries, getProfile, getMonthlyReports, saveMonthlyReport } from "../../lib/db";
 
 const MOOD_VALUES = { great: 4, ok: 3, meh: 2, down: 1, bad: 0 };
 const MOOD_LABEL  = { great: "很好", ok: "还行", meh: "一般", down: "低落", bad: "很差" };
 const MOOD_EMOJI  = { great: "😄", ok: "🙂", meh: "😐", down: "😔", bad: "😣" };
 
-async function saveMonthlyReportLocal(userId, yearMonth, report) {
-  const dateKey = yearMonth + "-01";
-  await sql`
-    INSERT INTO weekly_reports (user_id, week_start, report)
-    VALUES (${userId}, ${dateKey}, ${JSON.stringify({ ...report, type: "monthly" })})
-    ON CONFLICT (user_id, week_start) DO UPDATE
-    SET report = ${JSON.stringify({ ...report, type: "monthly" })}
-  `;
-}
 
 export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions);
@@ -95,7 +85,7 @@ ${summaries.slice(0,5).map(s=>"- "+s.summary).join("\n")||"（本月没有对话
         worstDay: { date: getDate(worst), mood: worst.mood, label: MOOD_LABEL[worst.mood] },
         narrative, generatedAt: new Date().toISOString(),
       };
-      await saveMonthlyReportLocal(userId, yearMonth, report);
+      await saveMonthlyReport(userId, yearMonth + "-01", report);
       return res.status(200).json({ ok: true, report });
     } catch(err) {
       return res.status(500).json({ error: String(err).slice(0,100) });
