@@ -17,7 +17,6 @@ export default function Chat() {
   const [showFeedback, setShowFeedback] = useState(false);
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
-  const abortRef = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -52,11 +51,6 @@ export default function Chat() {
     setMessages(next);
     setInput("");
     await runStream(next, next);
-  }
-
-  function stopStream() {
-    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
-    setLoading(false);
   }
 
   async function runStream(apiMessages, displayMessages) {

@@ -22,7 +22,7 @@ export default function Scenario() {
   const [feedback, setFeedback] = useState(null);
   const [questionnaireData, setQuestionnaireData] = useState(null);
   const bottomRef = useRef(null);
-  const abortRef = useRef(null);
+
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
