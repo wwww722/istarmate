@@ -105,18 +105,25 @@ export default function Scenario() {
     await runStream(next, next);
   }
 
-  async function saveProgress(msgs, isCompleted, scenarioData) {
+  async function saveProgress(msgs, isCompleted, scenarioData, storySummary) {
     const s = scenarioData || scenario;
     await fetch("/api/scenario", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scenarioId: s?.id || "ai", stepIndex: msgs.length, choices: msgs, completed: isCompleted, scenarioMeta: s }),
+      body: JSON.stringify({
+        scenarioId: s?.id || "ai", stepIndex: msgs.length, choices: msgs,
+        completed: isCompleted, scenarioMeta: s,
+        storySummary: storySummary || null,
+      }),
     });
   }
 
   async function finishToday() {
     setCompleted(true);
-    saveProgress(messages, true);
+    // 生成故事摘要供明天续集使用
+    const userMsgs = messages.filter(m => m.role === "user" && !m.content.startsWith("（")).map(m => m.content).join("、");
+    const storySummary = userMsgs ? `用户参与了"${scenario?.title}"，说到了：${userMsgs.slice(0, 80)}` : null;
+    saveProgress(messages, true, null, storySummary);
     // 成就触发
     fetch("/api/achievement-trigger", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -178,9 +185,11 @@ export default function Scenario() {
       </div>
 
       {/* 联动透明提示 */}
-      {weakDomain && !completed && messages.length === 0 && (
+      {!completed && messages.length === 0 && (
         <div style={{ background: "var(--purple-light)", borderRadius: 10, padding: "8px 14px", marginBottom: 12, fontSize: 12.5, color: "var(--purple-deep)" }}>
-          ✨ 今天的场景和你最近的「{weakDomain.name}」有关
+          {scenario?.continueFrom
+            ? `📖 续集 · 接着上次的故事 — ${scenario.continueFrom}`
+            : weakDomain ? `✨ 今天的场景和你最近的「${weakDomain.name}」有关` : "✨ 今天的故事是AI为你专属生成的"}
         </div>
       )}
 

@@ -42,6 +42,13 @@ export default async function handler(req, res) {
     });
     const data = await r.json();
     const summary = data?.choices?.[0]?.message?.content?.trim();
+    // 同时存为故事记忆供明天续集使用
+    if (summary) {
+      const { saveChatSummary } = await import("../../lib/db");
+      try {
+        await saveChatSummary(Number(session.userId), "[剧场] " + summary);
+      } catch {}
+    }
     return res.status(200).json({ summary: summary || "今天能来这里聊聊，本身就是很好的一步。" });
   } catch {
     return res.status(200).json({ summary: "今天能来这里聊聊，本身就是很好的一步。" });

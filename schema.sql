@@ -119,3 +119,24 @@ CREATE TABLE IF NOT EXISTS code_snippets (
   language TEXT DEFAULT 'html',
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 小剧场故事日志（跨天续集）
+CREATE TABLE IF NOT EXISTS scenario_story_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  log_date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, log_date)
+);
+
+-- 每月成长报告
+CREATE TABLE IF NOT EXISTS monthly_reports (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  year_month TEXT NOT NULL, -- 格式 "2026-07"
+  report JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, year_month)
+);
