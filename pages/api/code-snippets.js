@@ -1,7 +1,7 @@
 // pages/api/code-snippets.js
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
-import { saveCodeSnippet, getCodeSnippets, getCodeSnippet, deleteCodeSnippet } from "../../lib/db";
+import { saveCodeSnippet, getCodeSnippets, getCodeSnippet, deleteCodeSnippet, getPublicSnippets, toggleSnippetPublic, unlockAchievement, getAchievements } from "../../lib/db";
 
 export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions);
@@ -29,6 +29,22 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ error: "缺少id" });
     await deleteCodeSnippet(userId, Number(id));
     return res.status(200).json({ ok: true });
+  }
+
+  // PATCH: 切换公开/私密状态
+  if (req.method === "PATCH") {
+    const { id, isPublic, description } = req.body || {};
+    if (!id) return res.status(400).json({ error: "缺少id" });
+    await toggleSnippetPublic(userId, Number(id), !!isPublic, description || '');
+    const newlyUnlocked = [];
+    if (isPublic) {
+      const existing = new Set((await getAchievements(userId)).map(a => a.achievement_id));
+      if (!existing.has("showcase")) {
+        await unlockAchievement(userId, "showcase");
+        newlyUnlocked.push("showcase");
+      }
+    }
+    return res.status(200).json({ ok: true, newlyUnlocked });
   }
 
   return res.status(405).end();

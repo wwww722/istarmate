@@ -140,3 +140,64 @@ CREATE TABLE IF NOT EXISTS monthly_reports (
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id, year_month)
 );
+
+-- 作品展示墙：给code_snippets加公开字段
+ALTER TABLE code_snippets ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
+ALTER TABLE code_snippets ADD COLUMN IF NOT EXISTS author_display TEXT; -- 匿名显示名，如"松鼠#018"
+
+-- 危机日志
+CREATE TABLE IF NOT EXISTS crisis_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  message_snippet TEXT,
+  risk_level INTEGER DEFAULT 1, -- 1=警告 2=严重
+  context TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 邀请码
+CREATE TABLE IF NOT EXISTS invite_codes (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  code TEXT UNIQUE NOT NULL,
+  used_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS invite_uses (
+  id SERIAL PRIMARY KEY,
+  invite_code TEXT NOT NULL,
+  inviter_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  invitee_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 作品展示墙：code_snippets加公开字段
+ALTER TABLE code_snippets ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT FALSE;
+ALTER TABLE code_snippets ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+
+-- 危机检测日志
+CREATE TABLE IF NOT EXISTS crisis_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  message_snippet TEXT NOT NULL,
+  keywords TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 邀请码
+CREATE TABLE IF NOT EXISTS invite_codes (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  owner_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 邀请使用记录
+CREATE TABLE IF NOT EXISTS invite_uses (
+  id SERIAL PRIMARY KEY,
+  code TEXT NOT NULL,
+  used_by_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(used_by_user_id)
+);

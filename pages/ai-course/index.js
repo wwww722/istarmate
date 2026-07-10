@@ -58,6 +58,9 @@ export default function AiCourse() {
         <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/projects")}>
           我的项目 →
         </button>
+        <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/showcase")}>
+          🏛️ 作品展示墙
+        </button>
       </div>
 
       <p style={{ fontSize: 12.5, color: "var(--ink-soft)", textAlign: "center", marginTop: 20 }}>

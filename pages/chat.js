@@ -4,6 +4,9 @@ import { useSession } from "next-auth/react";
 import { streamFetch } from "../lib/useStreamChat";
 import { renderMarkdown } from "../lib/renderMarkdown";
 import { ThinkingDots } from "../components/PageTransition";
+import EmotionPicker from "../components/EmotionPicker";
+
+const HOTLINE = "400-161-9995";
 
 export default function Chat() {
   const router = useRouter();
@@ -13,8 +16,10 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [input, setInput] = useState("");
   const [opened, setOpened] = useState(false);
-  const [feedback, setFeedback] = useState(null); // null | 1 | -1
+  const [feedback, setFeedback] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showEmotions, setShowEmotions] = useState(false);
+  const [crisisAlert, setCrisisAlert] = useState(null); // null | "medium" | "high"
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
 
@@ -33,29 +38,42 @@ export default function Chat() {
   }, [messages, streamingText]);
 
   async function openChat(moodLabel) {
-    const openingMsg = moodLabel
-      ? `（用户刚才打卡选了"心情${moodLabel}"，请以星伴身份，自然地感知到TA的情绪状态，温柔地引出话题，不要生硬地说"我看到你打卡选了..."）`
-      : "（开始今天的聊天，以星伴身份温暖打招呼，问问今天过得怎么样，方式要新鲜有温度，不要用固定公式）";
-    await runStream([{ role: "user", content: openingMsg }], []);
+    const content = moodLabel
+      ? `（用户刚才打卡选了"心情${moodLabel}"，请以星伴身份，自然地感知到TA的情绪，温柔地引出话题）`
+      : "（以星伴身份温暖打招呼，问问今天过得怎么样，方式要新鲜有温度）";
+    await runStream([{ role: "user", content }], []);
   }
 
   function stopStream() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
-    setStreamingText("");
     setLoading(false);
+  }
+
+  async function checkCrisis(text) {
+    try {
+      const r = await fetch("/api/crisis-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await r.json();
+      if (data.crisis) setCrisisAlert(data.crisis.level);
+    } catch {}
   }
 
   async function send() {
     if (!input.trim() || loading) return;
-    const next = [...messages, { role: "user", content: input }];
-    setMessages(next);
+    const text = input.trim();
     setInput("");
+    setShowEmotions(false);
+    // 危机检测（不阻塞发送）
+    checkCrisis(text);
+    const next = [...messages, { role: "user", content: text }];
+    setMessages(next);
     await runStream(next, next);
   }
 
   async function runStream(apiMessages, displayMessages) {
-    const controller = new AbortController();
-    abortRef.current = controller;
     setLoading(true);
     setStreamingText("");
     let fullText = "";
@@ -66,46 +84,64 @@ export default function Chat() {
         setMessages(next);
         setStreamingText("");
         setLoading(false);
-        // 超过4轮对话后显示反馈
         if (next.filter(m => m.role === "user").length >= 3) setShowFeedback(true);
-        // 首次聊天成就
         if (next.filter(m => m.role === "assistant").length === 1) {
-          fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_chat" }) });
+          fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_chat" }) }).catch(() => {});
         }
       },
       (err) => {
         setMessages([...displayMessages, { role: "assistant", content: `（${err}）` }]);
         setStreamingText("");
         setLoading(false);
-      }
+      },
+      {},
+      abortRef
     );
   }
 
   async function submitFeedback(rating) {
     setFeedback(rating);
-    await fetch("/api/feedback", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context: "chat", rating }),
-    });
-    // 同时保存对话摘要
+    await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: "chat", rating }) });
     if (messages.length >= 4) {
-      fetch("/api/chat-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
-      });
+      fetch("/api/chat-summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) }).catch(() => {});
     }
   }
 
   if (status !== "authenticated") return null;
 
   return (
-    <div className="wrap" style={{ paddingBottom: 110 }}>
+    <div className="wrap" style={{ paddingBottom: 130 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }} style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }}
+          style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
         <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>和星伴聊聊</p>
       </div>
+
+      {/* 危机提醒横幅 */}
+      {crisisAlert && (
+        <div style={{
+          background: crisisAlert === "high" ? "#FEF2F2" : "#FFFBEB",
+          border: `1.5px solid ${crisisAlert === "high" ? "#FECACA" : "#FDE68A"}`,
+          borderRadius: 14, padding: "14px 16px", marginBottom: 14,
+        }}>
+          <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 6px", color: crisisAlert === "high" ? "#DC2626" : "#92400E" }}>
+            {crisisAlert === "high" ? "💙 我注意到你刚才说的话" : "💛 我想多了解一下你现在的状态"}
+          </p>
+          <p style={{ fontSize: 13.5, color: crisisAlert === "high" ? "#991B1B" : "#78350F", margin: "0 0 10px", lineHeight: 1.6 }}>
+            {crisisAlert === "high"
+              ? "听到你这样说，我很担心你。不管发生了什么，你现在不是一个人。如果你现在非常难受，请联系身边信任的人，或者拨打热线。"
+              : "有些事说出来会轻一点。如果你愿意，可以和我多说说你现在的感受。"}
+          </p>
+          {crisisAlert === "high" && (
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#DC2626", margin: "0 0 8px" }}>
+              📞 24小时希望热线：{HOTLINE}
+            </p>
+          )}
+          <button onClick={() => setCrisisAlert(null)} style={{ background: "none", border: "none", color: "#6B7280", fontSize: 12.5, cursor: "pointer", padding: 0 }}>
+            收起提醒
+          </button>
+        </div>
+      )}
 
       {messages.map((m, i) => (
         <div key={i} className={`msg-row ${m.role === "user" ? "me" : ""}`}>
@@ -122,7 +158,6 @@ export default function Chat() {
         </div>
       )}
 
-      {/* 反馈区 */}
       {showFeedback && !loading && (
         <div style={{ textAlign: "center", padding: "12px 0", color: "var(--ink-soft)", fontSize: 13.5 }}>
           {feedback === null ? (
@@ -138,15 +173,30 @@ export default function Chat() {
       )}
       <div ref={bottomRef} />
 
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "var(--bg)", borderTop: "1px solid var(--line)", padding: "14px 16px" }}>
-        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", gap: 8 }}>
-          <input className="input" style={{ marginBottom: 0 }} placeholder="说点什么..."
-            value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !loading && send()} />
-          {loading ? (
-            <button className="btn" style={{ width: "auto", padding: "0 14px", color: "var(--coral-deep)", borderColor: "var(--coral-deep)" }} onClick={stopStream}>■</button>
-          ) : (
-            <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send}>发送</button>
+      {/* 输入区 */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "rgba(245,243,255,0.96)", backdropFilter: "blur(20px)", borderTop: "1px solid var(--line)", padding: "12px 16px 24px" }}>
+        <div style={{ maxWidth: 500, margin: "0 auto", position: "relative" }}>
+          {showEmotions && (
+            <EmotionPicker
+              onSelect={(word) => setInput(prev => prev ? prev + " " + word : word)}
+              onClose={() => setShowEmotions(false)}
+            />
           )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={() => setShowEmotions(!showEmotions)} title="情绪词汇" style={{
+              width: 38, height: 38, borderRadius: "50%", border: "1.5px solid var(--line)",
+              background: showEmotions ? "var(--purple-light)" : "#fff",
+              cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}>💭</button>
+            <input className="input" style={{ marginBottom: 0, flex: 1 }} placeholder="说点什么..."
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !loading) send(); }} />
+            {loading ? (
+              <button onClick={stopStream} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(201,74,74,0.12)", color: "var(--coral-deep)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>⏹</button>
+            ) : (
+              <button onClick={send} disabled={!input.trim()} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: !input.trim() ? "rgba(124,111,224,0.1)" : "linear-gradient(135deg, #9B8FF0, #7C6FE0)", color: "#fff", cursor: !input.trim() ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0, boxShadow: !input.trim() ? "none" : "0 4px 14px rgba(124,111,224,0.4)", transition: "all 0.2s" }}>↑</button>
+            )}
+          </div>
         </div>
       </div>
     </div>
