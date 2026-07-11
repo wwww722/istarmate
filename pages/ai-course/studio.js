@@ -97,7 +97,10 @@ export default function Studio() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [opened, setOpened] = useState(false);
-  const [files, setFiles] = useState(STARTER_STATIC);
+  const [initialFiles, setInitialFiles] = useState(STARTER_STATIC);
+  const [filesToInject, setFilesToInject] = useState(null);
+  const [injectVersion, setInjectVersion] = useState(0);
+  const currentFilesRef = useRef(STARTER_STATIC); // 沙盒当前代码快照（供AI读取）
   const [sandboxError, setSandboxError] = useState(null);
   const [mobileTab, setMobileTab] = useState("chat");
   const [dark, setDark] = useState(false);
@@ -112,12 +115,14 @@ export default function Studio() {
   }, [status]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: streamingText ? "auto" : "smooth" });
   }, [messages, streamingText]);
 
   function chooseMode(m) {
     setMode(m);
-    setFiles(m === "react" ? STARTER_REACT : STARTER_STATIC);
+    const starter = m === "react" ? STARTER_REACT : STARTER_STATIC;
+    setInitialFiles(starter);
+    currentFilesRef.current = starter;
     setOpened(true);
     runStream([{ role: "user", content: stageParam ? `开始第${stageParam}课（${m === "react" ? "React模式" : "网页模式"}）` : `开始（我选择了${m === "react" ? "React 应用" : "纯网页"}模式）` }], []);
   }
@@ -129,10 +134,15 @@ export default function Studio() {
 
   function filesForApi() {
     const out = {};
-    for (const [k, v] of Object.entries(files)) {
+    for (const [k, v] of Object.entries(currentFilesRef.current || {})) {
       out[k.replace(/^\//, "")] = typeof v === "string" ? v : (v?.code || "");
     }
     return out;
+  }
+
+  // Sandpack回传当前代码时，只更新ref，不触发重渲染
+  function handleFilesChange(f) {
+    currentFilesRef.current = f;
   }
 
   async function runStream(apiMessages, displayMessages) {
@@ -148,14 +158,15 @@ export default function Studio() {
         setLoading(false);
         const newFiles = parseFileBlocks(fullText);
         if (Object.keys(newFiles).length > 0) {
-          setFiles(prev => {
-            const merged = { ...prev };
-            for (const [path, content] of Object.entries(newFiles)) {
-              const key = path.startsWith("/") ? path : "/" + path;
-              merged[key] = content;
-            }
-            return merged;
-          });
+          setFilesToInject(newFiles);
+          setInjectVersion(v => v + 1);
+          // 同步更新ref快照
+          const merged = { ...currentFilesRef.current };
+          for (const [path, c] of Object.entries(newFiles)) {
+            const key = path.startsWith("/") ? path : "/" + path;
+            merged[key] = c;
+          }
+          currentFilesRef.current = merged;
           setSandboxError(null);
           if (typeof window !== "undefined" && window.innerWidth < 900) setMobileTab("code");
         }
@@ -288,7 +299,7 @@ export default function Studio() {
           {chatPanel}
         </div>
         <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0 }}>
-          <SandpackStudio files={files} onFilesChange={setFiles} onError={setSandboxError} mode={mode} />
+          <SandpackStudio initialFiles={initialFiles} filesToInject={filesToInject} injectVersion={injectVersion} onFilesChange={handleFilesChange} onError={setSandboxError} mode={mode} />
         </div>
       </div>
 

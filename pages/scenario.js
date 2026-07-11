@@ -31,7 +31,7 @@ export default function Scenario() {
   }, [status]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: streamingText ? "auto" : "smooth" });
   }, [messages, streamingText, summary]);
 
   async function loadAndOpen() {

@@ -273,3 +273,20 @@ h1, h2, h3 { margin: 0; font-weight: 700; }
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
   30% { transform: translateY(-6px); opacity: 1; }
 }
+
+/* 深色模式下原生select的选项 */
+html[data-theme="dark"] select.input option {
+  background: var(--card-solid);
+  color: var(--ink);
+}
+
+/* 输入框占位符颜色适配 */
+.input::placeholder, textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(124,111,224,0.25); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(124,111,224,0.4); }

@@ -21,11 +21,11 @@ export default function BreathingExercise({ onClose }) {
       setCountdown(prev => {
         if (prev <= 1) {
           setPhaseIndex(pi => {
-            const next = (pi + 1) % PHASES.length;
-            if (next === 0) setCycles(c => c + 1);
-            return next;
+            const nextIdx = (pi + 1) % PHASES.length;
+            if (nextIdx === 0) setCycles(c => c + 1);
+            return nextIdx;
           });
-          return null; // 会在下面的effect里重置
+          return 0;
         }
         return prev - 1;
       });
@@ -84,7 +84,7 @@ export default function BreathingExercise({ onClose }) {
             boxShadow: `0 0 60px ${phase.color}66`,
           }}>
             <div style={{ transform: `scale(${1 / phase.scale})`, transition: `transform ${phase.duration}s ease-in-out` }}>
-              <p style={{ color: "#fff", fontSize: 28, fontWeight: 700, margin: 0 }}>{countdown ?? phase.duration}</p>
+              <p style={{ color: "#fff", fontSize: 28, fontWeight: 700, margin: 0 }}>{countdown || phase.duration}</p>
             </div>
           </div>
 

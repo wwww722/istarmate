@@ -44,7 +44,7 @@ export default function Chat() {
   }, [status, router.isReady]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: streamingText ? "auto" : "smooth" });
   }, [messages, streamingText]);
 
   async function loadHistory() {
