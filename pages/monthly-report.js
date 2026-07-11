@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
+import { PageSkeleton } from "../components/EmptyState";
 
 const MOOD_EMOJI = { great: "😄", ok: "🙂", meh: "😐", down: "😔", bad: "😣" };
 const TREND_ICON = { "上升": "📈", "下降": "📉", "平稳": "➡️" };
@@ -48,7 +49,8 @@ export default function MonthlyReport() {
     }
   }
 
-  if (status !== "authenticated" || loading) return null;
+  if (status !== "authenticated") return null;
+  if (loading) return <PageSkeleton cards={3} />;
 
   const report = selected;
   const now = new Date();

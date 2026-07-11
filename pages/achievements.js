@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { ACHIEVEMENTS } from "../lib/achievements";
+import { PageSkeleton } from "../components/EmptyState";
 
 export default function AchievementsPage() {
   const router = useRouter();
@@ -22,7 +23,8 @@ export default function AchievementsPage() {
     setLoading(false);
   }
 
-  if (status !== "authenticated" || loading) return null;
+  if (status !== "authenticated") return null;
+  if (loading) return <PageSkeleton cards={3} />;
 
   return (
     <div className="wrap">

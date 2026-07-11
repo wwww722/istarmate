@@ -147,7 +147,30 @@ export default function AiCourseChat() {
   }
 
   async function saveSnippet(code, lang) {
-    const title = window.prompt("给这段代码起个名字：", "我的网站 " + new Date().toLocaleDateString("zh-CN"));
+    // 先看有没有已保存的项目，让用户选择"更新到已有项目"还是"新建"
+    let existing = [];
+    try {
+      const lr = await fetch("/api/code-snippets");
+      const ld = await lr.json();
+      existing = ld.snippets || [];
+    } catch {}
+
+    if (existing.length > 0) {
+      const updateExisting = window.confirm(
+        `你已有 ${existing.length} 个项目。\n\n点"确定"：更新到最近的项目「${existing[0].title}」并保存为新版本\n点"取消"：新建一个项目`
+      );
+      if (updateExisting) {
+        const r = await fetch("/api/code-snippets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ snippetId: existing[0].id, code, versionNote: "在编程课里迭代" }),
+        });
+        if (r.ok) alert(`✅ 已更新「${existing[0].title}」并保存为新版本！`);
+        return;
+      }
+    }
+
+    const title = window.prompt("给这个项目起个名字：", "我的网站 " + new Date().toLocaleDateString("zh-CN"));
     if (!title) return;
     const r = await fetch("/api/code-snippets", {
       method: "POST",

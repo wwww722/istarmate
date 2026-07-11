@@ -45,29 +45,46 @@ export default function StarOrb({ moodToday }) {
   const [input, setInput] = useState("");
   const [initialized, setInitialized] = useState(false);
   const [orbPop, setOrbPop] = useState(false);
+  const [careSignal, setCareSignal] = useState(null); // { level, days } | null
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
 
-  const greeting = getProactiveGreeting(moodToday);
+  // 连续低落检测：优先于普通问候
+  const greeting = careSignal
+    ? (careSignal.level === "high"
+        ? ["我注意到你这几天都不太好 💙", `已经连续 ${careSignal.days} 天了，要不要和我聊聊？`]
+        : ["这两天心情好像都有点低 💙", "我一直在这儿，想说说吗？"])
+    : getProactiveGreeting(moodToday);
 
-  // 进入仪表盘3秒后主动弹气泡
+  // 拉取连续低落信号
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/care-check")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled && data?.care) setCareSignal(data.care); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // 进入仪表盘后主动弹气泡（有连续低落信号时更快弹出）
   useEffect(() => {
     if (bubbleDismissed) return;
+    const delay = careSignal ? 1500 : 3000;
     const t = setTimeout(() => {
       setBubbleVisible(true);
       setOrbPop(true);
       setTimeout(() => setOrbPop(false), 600);
-    }, 3000);
+    }, delay);
     return () => clearTimeout(t);
-  }, [bubbleDismissed]);
+  }, [bubbleDismissed, careSignal]);
 
-  // 气泡10秒后自动收起（不强制关闭，只是不再显示动画）
+  // 气泡自动收起（关怀信号停留更久）
   useEffect(() => {
     if (!bubbleVisible) return;
-    const t = setTimeout(() => setBubbleVisible(false), 10000);
+    const t = setTimeout(() => setBubbleVisible(false), careSignal ? 16000 : 10000);
     return () => clearTimeout(t);
-  }, [bubbleVisible]);
+  }, [bubbleVisible, careSignal]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,9 +100,14 @@ export default function StarOrb({ moodToday }) {
     setOpen(true);
     if (!initialized) {
       setInitialized(true);
-      const openingContent = moodToday === "down" || moodToday === "bad"
-        ? `（用户今天打卡选了心情"${moodToday === "down" ? "低落" : "很差"}"，请以星伴身份，不要生硬提到"打卡"，而是自然地感知到TA的状态，温柔地引出话题，问问发生了什么）`
-        : "（以星伴身份，根据现在的时间段，用一句温暖有新鲜感的话打招呼，问问用户今天过得怎么样，简短自然）";
+      let openingContent;
+      if (careSignal) {
+        openingContent = `（这个用户已经连续${careSignal.days}天打卡心情都是低落或很差。请以星伴身份，用真诚温柔、不夸张的语气，让TA感到被看见——不要生硬地说"我发现你连续几天"，而是自然地表达关心，轻轻邀请TA说说最近发生了什么。简短、有温度。）`;
+      } else if (moodToday === "down" || moodToday === "bad") {
+        openingContent = `（用户今天打卡选了心情"${moodToday === "down" ? "低落" : "很差"}"，请以星伴身份，不要生硬提到"打卡"，而是自然地感知到TA的状态，温柔地引出话题，问问发生了什么）`;
+      } else {
+        openingContent = "（以星伴身份，根据现在的时间段，用一句温暖有新鲜感的话打招呼，问问用户今天过得怎么样，简短自然）";
+      }
       runStream([{ role: "user", content: openingContent }], []);
     }
   }

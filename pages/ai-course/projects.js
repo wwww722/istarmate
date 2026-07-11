@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { AchievementPopup } from "../../components/PageTransition";
+import { PageSkeleton } from "../../components/EmptyState";
 
 export default function MyProjects() {
   const router = useRouter();
@@ -12,6 +13,8 @@ export default function MyProjects() {
   const [newAchievements, setNewAchievements] = useState([]);
   const [shareModal, setShareModal] = useState(null);
   const [shareDesc, setShareDesc] = useState("");
+  const [versions, setVersions] = useState([]);
+  const [showVersions, setShowVersions] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -30,6 +33,33 @@ export default function MyProjects() {
     const r = await fetch(`/api/code-snippets?id=${id}`);
     const data = await r.json();
     setSelected(data.snippet);
+    setShowVersions(false);
+    // 同时拉取版本历史
+    try {
+      const vr = await fetch(`/api/code-versions?snippetId=${id}`);
+      const vd = await vr.json();
+      setVersions(vd.versions || []);
+    } catch {
+      setVersions([]);
+    }
+  }
+
+  async function restoreVersion(versionId) {
+    if (!selected) return;
+    if (!confirm("回滚到这个版本？当前代码会被替换（但不会丢失，会作为新版本保留）。")) return;
+    const r = await fetch("/api/code-versions", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snippetId: selected.id, versionId }),
+    });
+    const data = await r.json();
+    if (r.ok && data.code) {
+      setSelected(prev => ({ ...prev, code: data.code }));
+      setShowVersions(false);
+      // 刷新版本列表
+      const vr = await fetch(`/api/code-versions?snippetId=${selected.id}`);
+      const vd = await vr.json();
+      setVersions(vd.versions || []);
+    }
   }
 
   async function deleteSnippet(id) {
@@ -77,7 +107,8 @@ export default function MyProjects() {
     window.open(URL.createObjectURL(blob), "_blank");
   }
 
-  if (status !== "authenticated" || loading) return null;
+  if (status !== "authenticated") return null;
+  if (loading) return <PageSkeleton cards={2} />;
 
   return (
     <div className="wrap">
@@ -114,10 +145,46 @@ export default function MyProjects() {
             <button className="btn primary" style={{ flex: 1, minWidth: 120 }} onClick={() => previewCode(selected.code)}>🌐 在浏览器预览</button>
             <button className="btn" style={{ flex: 1, minWidth: 120 }} onClick={() => navigator.clipboard?.writeText(selected.code)}>📋 复制代码</button>
           </div>
-          <button className="btn" style={{ marginBottom: 12, color: selected.is_public ? "var(--coral-deep)" : "var(--purple-deep)", borderColor: selected.is_public ? "var(--coral-deep)" : "var(--purple)" }}
-            onClick={() => togglePublic(selected)}>
-            {selected.is_public ? "🔒 取消公开展示" : "🏛️ 分享到展示墙"}
-          </button>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+            <button className="btn" style={{ flex: 1, minWidth: 120, marginBottom: 0, color: selected.is_public ? "var(--coral-deep)" : "var(--purple-deep)", borderColor: selected.is_public ? "var(--coral-deep)" : "var(--purple)" }}
+              onClick={() => togglePublic(selected)}>
+              {selected.is_public ? "🔒 取消公开展示" : "🏛️ 分享到展示墙"}
+            </button>
+            <button className="btn" style={{ flex: 1, minWidth: 120, marginBottom: 0 }}
+              onClick={() => setShowVersions(v => !v)}>
+              🕐 版本历史{versions.length > 0 ? ` (${versions.length})` : ""}
+            </button>
+          </div>
+
+          {showVersions && (
+            <div className="card" style={{ padding: "14px 16px", marginBottom: 12 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 10px" }}>历史版本（最多保留10个）</p>
+              {versions.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0 }}>还没有历史版本。每次在编程课里迭代保存，就会记录一个版本。</p>
+              ) : (
+                versions.map((v, i) => (
+                  <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: i > 0 ? "1px solid var(--line)" : "none" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, margin: "0 0 2px", fontWeight: 500 }}>
+                        {i === 0 ? "最新" : `版本 ${versions.length - i}`}
+                        {v.version_note ? ` · ${v.version_note}` : ""}
+                      </p>
+                      <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: 0 }}>
+                        {new Date(v.created_at).toLocaleString("zh-CN")}
+                      </p>
+                    </div>
+                    {i !== 0 && (
+                      <button onClick={() => restoreVersion(v.id)}
+                        style={{ background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 12, padding: "5px 12px", borderRadius: 10, cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>
+                        回滚
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
           <div style={{ background: "#1e1e2e", borderRadius: 14, padding: 16, overflow: "auto", maxHeight: "55vh" }}>
             <pre style={{ color: "#cdd6f4", fontSize: 12.5, margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
               <code>{selected.code}</code>

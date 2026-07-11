@@ -161,10 +161,10 @@ export default function Dashboard() {
                   { label: "👤 我的资料", action: () => router.push("/onboarding") },
                   { label: "📊 重新做问卷", action: () => router.push("/questionnaire") },
                   { label: "🏆 我的成就", action: () => router.push("/achievements") },
-                  { label: "🤝 邀请朋友", action: () => router.push("/invite") },
                   { label: "📈 每周报告", action: () => router.push("/weekly-report") },
                   { label: "🌙 每月成长报告", action: () => router.push("/monthly-report") },
                   { label: "🎟️ 邀请朋友", action: () => router.push("/invite") },
+                  { label: "⚙️ 账号设置", action: () => router.push("/account") },
                   { label: "🚪 退出登录", action: () => signOut({ callbackUrl: "/login" }), danger: true },
                 ].map((item, i) => (
                   <button key={i} onClick={() => { setShowSettings(false); item.action(); }} style={{

@@ -201,3 +201,23 @@ CREATE TABLE IF NOT EXISTS invite_uses (
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(used_by_user_id)
 );
+
+-- 代码版本历史
+CREATE TABLE IF NOT EXISTS code_versions (
+  id SERIAL PRIMARY KEY,
+  snippet_id INTEGER REFERENCES code_snippets(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  version_note TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 代码版本历史
+CREATE TABLE IF NOT EXISTS code_versions (
+  id SERIAL PRIMARY KEY,
+  snippet_id INTEGER REFERENCES code_snippets(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  version_note TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT NOW()
+);

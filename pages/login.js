@@ -112,7 +112,11 @@ export default function Login() {
         </div>
 
         <p style={{ textAlign: "center", fontSize: 12, color: "var(--ink-muted)", marginTop: 20, lineHeight: 1.7 }}>
-          注册即表示同意《用户协议》与《隐私政策》<br />未成年用户需在监护人同意下使用本服务
+          注册即表示同意
+          <a href="#" onClick={(e) => { e.preventDefault(); router.push("/terms"); }} style={{ color: "var(--purple-deep)" }}>《用户协议》</a>
+          与
+          <a href="#" onClick={(e) => { e.preventDefault(); router.push("/privacy"); }} style={{ color: "var(--purple-deep)" }}>《隐私政策》</a>
+          <br />未成年用户需在监护人同意下使用本服务
         </p>
       </div>
     </div>

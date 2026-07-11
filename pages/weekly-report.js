@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
+import { PageSkeleton } from "../components/EmptyState";
 
 const MOOD_EMOJI = { great: "😄", ok: "🙂", meh: "😐", down: "😔", bad: "😣" };
 const MOOD_VALUES = { great: 4, ok: 3, meh: 2, down: 1, bad: 0 };
@@ -30,7 +31,8 @@ export default function WeeklyReport() {
     setLoading(false);
   }
 
-  if (status !== "authenticated" || loading) return null;
+  if (status !== "authenticated") return null;
+  if (loading) return <PageSkeleton cards={3} />;
 
   const report = reports[selected]?.report;
   const avgToColor = (avg) => avg >= 3 ? "#1D9E75" : avg >= 2 ? "#EF9F27" : "#D85A30";
