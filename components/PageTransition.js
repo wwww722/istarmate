@@ -72,6 +72,13 @@ export function ThinkingDots() {
 // 成就解锁弹窗
 export function AchievementPopup({ achievementIds, onClose }) {
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (achievementIds?.length) {
+      import("../lib/feedback").then(({ feedback }) => feedback.achievement()).catch(() => {});
+    }
+  }, [achievementIds]);
+
   if (!achievementIds?.length) return null;
   const a = getAchievement(achievementIds[current]);
   if (!a) return null;

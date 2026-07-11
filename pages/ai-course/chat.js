@@ -69,9 +69,22 @@ export default function AiCourseChat() {
   const [loading, setLoading] = useState(false);
   const [opened, setOpened] = useState(false);
   const [previewCode, setPreviewCode] = useState(null);
+  const [previewError, setPreviewError] = useState(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
+  const stageParam = router.query.stage ? Number(router.query.stage) : null;
+
+  // 监听预览iframe里的报错，自动提示可以让代码星帮忙
+  useEffect(() => {
+    function onMessage(e) {
+      if (e.data && e.data.type === "istarmate-preview-error") {
+        setPreviewError(e.data.message || "代码运行出错了");
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -106,7 +119,17 @@ export default function AiCourseChat() {
   }
 
   async function openChat() {
-    await runStream([{ role: "user", content: "开始" }], []);
+    const stageContent = stageParam
+      ? `开始第${stageParam}课`
+      : "开始";
+    await runStream([{ role: "user", content: stageContent }], []);
+  }
+
+  function handlePreviewError() {
+    if (!previewError) return;
+    const debugMsg = `我的代码运行出错了，报错信息是：${previewError}。能帮我看看哪里有问题吗？`;
+    setInput(debugMsg);
+    setPreviewError(null);
   }
 
   function stopStream() {
@@ -132,7 +155,7 @@ export default function AiCourseChat() {
         setStreamingText("");
         setLoading(false);
       },
-      {},
+      stageParam ? { stage: stageParam } : {},
       abortRef
     );
   }
@@ -177,11 +200,35 @@ export default function AiCourseChat() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, code, language: lang || "html" }),
     });
-    if (r.ok) alert("✅ 已保存到「我的项目」！");
+    if (r.ok) {
+      alert("✅ 已保存到「我的项目」！");
+      // 如果在学习路径的某个阶段，标记完成
+      if (stageParam) {
+        fetch("/api/course-progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stage: stageParam }),
+        }).catch(() => {});
+      }
+    }
   }
 
   function handlePreview(code) {
-    setPreviewCode(code);
+    setPreviewError(null);
+    // 注入错误捕获脚本，把iframe里的报错通过postMessage传回来
+    const errorCatcher = `<script>
+window.onerror = function(msg, url, line) {
+  parent.postMessage({ type: "istarmate-preview-error", message: msg + (line ? " (第" + line + "行附近)" : "") }, "*");
+  return true;
+};<\/script>`;
+    // 把脚本插到 </head> 前，没有head就插到最前面
+    let injected;
+    if (code.includes("</head>")) {
+      injected = code.replace("</head>", errorCatcher + "</head>");
+    } else {
+      injected = errorCatcher + code;
+    }
+    setPreviewCode(injected);
   }
 
   function handleKeyDown(e) {
@@ -268,8 +315,21 @@ export default function AiCourseChat() {
         <div style={{ width: "45%", borderLeft: "1px solid var(--line)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
           <div style={{ padding: "12px 16px", background: "rgba(245,243,255,0.95)", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>🌐 实时预览</span>
-            <button onClick={() => setPreviewCode(null)} style={{ background: "none", border: "none", color: "var(--ink-soft)", cursor: "pointer", fontSize: 18 }}>×</button>
+            <button onClick={() => { setPreviewCode(null); setPreviewError(null); }} style={{ background: "none", border: "none", color: "var(--ink-soft)", cursor: "pointer", fontSize: 18 }}>×</button>
           </div>
+          {previewError && (
+            <div style={{ background: "#FEF2F2", borderBottom: "1px solid #FECACA", padding: "10px 14px" }}>
+              <p style={{ fontSize: 12.5, color: "#DC2626", margin: "0 0 8px", lineHeight: 1.5 }}>
+                ⚠️ 代码运行出错：{previewError}
+              </p>
+              <button onClick={handlePreviewError} style={{
+                background: "#DC2626", color: "#fff", border: "none", fontSize: 12,
+                padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontWeight: 500,
+              }}>
+                🤖 让代码星帮我看看
+              </button>
+            </div>
+          )}
           <iframe
             srcDoc={previewCode}
             style={{ flex: 1, border: "none", background: "#fff" }}

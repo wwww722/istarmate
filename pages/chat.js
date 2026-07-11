@@ -5,6 +5,7 @@ import { streamFetch } from "../lib/useStreamChat";
 import { renderMarkdown } from "../lib/renderMarkdown";
 import { ThinkingDots } from "../components/PageTransition";
 import EmotionPicker from "../components/EmotionPicker";
+import BreathingExercise from "../components/BreathingExercise";
 
 const HOTLINE = "400-161-9995";
 
@@ -20,6 +21,7 @@ export default function Chat() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [showEmotions, setShowEmotions] = useState(false);
   const [crisisAlert, setCrisisAlert] = useState(null); // null | "medium" | "high"
+  const [showBreathing, setShowBreathing] = useState(false);
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
 
@@ -66,6 +68,7 @@ export default function Chat() {
     const text = input.trim();
     setInput("");
     setShowEmotions(false);
+    import("../lib/feedback").then(({ feedback }) => feedback.send()).catch(() => {});
     // 危机检测（不阻塞发送）
     checkCrisis(text);
     const next = [...messages, { role: "user", content: text }];
@@ -137,6 +140,9 @@ export default function Chat() {
               📞 24小时希望热线：{HOTLINE}
             </p>
           )}
+          <button onClick={() => setShowBreathing(true)} style={{ background: crisisAlert === "high" ? "#DC2626" : "#92400E", color: "#fff", border: "none", fontSize: 13, padding: "8px 14px", borderRadius: 10, cursor: "pointer", fontWeight: 500, marginRight: 10 }}>
+            🌬️ 做个呼吸练习
+          </button>
           <button onClick={() => setCrisisAlert(null)} style={{ background: "none", border: "none", color: "#6B7280", fontSize: 12.5, cursor: "pointer", padding: 0 }}>
             收起提醒
           </button>
@@ -199,6 +205,7 @@ export default function Chat() {
           </div>
         </div>
       </div>
+      {showBreathing && <BreathingExercise onClose={() => setShowBreathing(false)} />}
     </div>
   );
 }

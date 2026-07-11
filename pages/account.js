@@ -9,6 +9,23 @@ export default function Account() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+
+  useEffect(() => {
+    import("../lib/feedback").then(({ soundEnabled }) => {
+      setSoundOn(soundEnabled());
+    }).catch(() => {});
+  }, []);
+
+  async function toggleSound() {
+    const next = !soundOn;
+    setSoundOn(next);
+    try {
+      const { setSoundEnabled, feedback } = await import("../lib/feedback");
+      setSoundEnabled(next);
+      if (next) feedback.tap();
+    } catch {}
+  }
 
   // 表单字段
   const [newEmail, setNewEmail] = useState("");
@@ -116,6 +133,15 @@ export default function Account() {
                 <span style={{ color: "var(--ink-muted)" }}>›</span>
               </button>
             ))}
+          </div>
+
+          <div className="card" style={{ padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 18 }}>🔊</span>
+            <span style={{ flex: 1, fontSize: 14.5 }}>音效与震动反馈</span>
+            <button onClick={toggleSound}
+              style={{ width: 48, height: 28, borderRadius: 14, border: "none", cursor: "pointer", background: soundOn ? "var(--purple)" : "rgba(124,111,224,0.2)", position: "relative", transition: "background 0.2s" }}>
+              <span style={{ position: "absolute", top: 3, left: soundOn ? 23 : 3, width: 22, height: 22, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+            </button>
           </div>
 
           <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>

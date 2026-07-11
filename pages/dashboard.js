@@ -4,6 +4,7 @@ import { useSession, signOut } from "next-auth/react";
 import { AchievementPopup, SkeletonCard } from "../components/PageTransition";
 import MoodChart from "../components/MoodChart";
 import StarOrb from "../components/StarOrb";
+import BreathingExercise from "../components/BreathingExercise";
 
 const MOODS = [
   { id: "great", emoji: "😄", label: "很好",  low: false },
@@ -26,6 +27,10 @@ export default function Dashboard() {
   const [dayCount, setDayCount] = useState(1);
   const [scenarioDone, setScenarioDone] = useState(false);
   const [mood, setMood] = useState(null);
+  const [showDiary, setShowDiary] = useState(false);
+  const [diaryMood, setDiaryMood] = useState(null);
+  const [diaryNote, setDiaryNote] = useState("");
+  const [showBreathing, setShowBreathing] = useState(false);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
   const [selectedMoodLabel, setSelectedMoodLabel] = useState("");
   const [loading, setLoading] = useState(true);
@@ -81,6 +86,8 @@ export default function Dashboard() {
     const data = await r.json();
     if (data.newlyUnlocked?.length) setNewAchievements(data.newlyUnlocked);
     if (data.streak) setStreak(data.streak);
+    // 触发打卡音效
+    try { const { feedback } = await import("../lib/feedback"); feedback.checkin(); } catch {}
     // 更新本地logs
     const today = new Date().toISOString().slice(0, 10);
     setMoodLogs(prev => {
@@ -90,10 +97,24 @@ export default function Dashboard() {
       });
       return [{ log_date: today, mood: m.id }, ...filtered];
     });
+    // 打卡后展示日记输入
+    setDiaryMood(m);
+    setShowDiary(true);
     if (m.low) {
       setSelectedMoodLabel(m.label);
       setTimeout(() => setShowMoodPopup(true), 400);
     }
+  }
+
+  async function saveDiaryNote() {
+    if (!diaryMood) return;
+    await fetch("/api/checkin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood: diaryMood.id, note: diaryNote }),
+    });
+    setShowDiary(false);
+    setDiaryNote("");
   }
 
   if (status !== "authenticated") return null;
@@ -164,6 +185,8 @@ export default function Dashboard() {
                   { label: "📈 每周报告", action: () => router.push("/weekly-report") },
                   { label: "🌙 每月成长报告", action: () => router.push("/monthly-report") },
                   { label: "🎟️ 邀请朋友", action: () => router.push("/invite") },
+                  { label: "📔 情绪日记", action: () => router.push("/mood-diary") },
+                  { label: "🌬️ 呼吸练习", action: () => { setShowSettings(false); setShowBreathing(true); } },
                   { label: "⚙️ 账号设置", action: () => router.push("/account") },
                   { label: "🚪 退出登录", action: () => signOut({ callbackUrl: "/login" }), danger: true },
                 ].map((item, i) => (
@@ -238,6 +261,38 @@ export default function Dashboard() {
         </a>
       </p>
 
+      {/* 情绪日记输入弹窗 */}
+      {showDiary && diaryMood && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 150, padding: 24 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowDiary(false); setDiaryNote(""); } }}>
+          <div className="card" style={{ maxWidth: 360, width: "100%", padding: "24px 22px", animation: "popIn 0.3s ease" }}>
+            <p style={{ textAlign: "center", fontSize: 15.5, fontWeight: 600, margin: "0 0 4px" }}>
+              今天为什么是这个心情？
+            </p>
+            <p style={{ textAlign: "center", fontSize: 13, color: "var(--ink-soft)", margin: "0 0 16px" }}>
+              写一句话记录一下（选填）
+            </p>
+            <textarea
+              value={diaryNote}
+              onChange={(e) => setDiaryNote(e.target.value)}
+              placeholder="今天发生了什么，或者此刻的感受..."
+              rows={3}
+              style={{
+                width: "100%", padding: "12px 14px", borderRadius: 12,
+                border: "1.5px solid var(--line)", background: "rgba(255,255,255,0.7)",
+                fontSize: 14.5, fontFamily: "inherit", resize: "none", outline: "none",
+                lineHeight: 1.6, color: "var(--ink)", marginBottom: 14,
+              }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn primary" style={{ flex: 1 }} onClick={saveDiaryNote}>
+                {diaryNote.trim() ? "保存" : "跳过"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 心情低落弹窗 */}
       {showMoodPopup && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100, padding: "0 0 20px" }}
@@ -251,6 +306,9 @@ export default function Dashboard() {
             <button className="btn primary" style={{ marginBottom: 10 }} onClick={() => { setShowMoodPopup(false); router.push(`/chat?mood=${selectedMoodLabel}`); }}>
               说说看 →
             </button>
+            <button className="btn" style={{ marginBottom: 10 }} onClick={() => { setShowMoodPopup(false); setShowBreathing(true); }}>
+              🌬️ 先做个呼吸练习
+            </button>
             <button className="btn" onClick={() => setShowMoodPopup(false)}>现在不想说</button>
           </div>
         </div>
@@ -259,6 +317,8 @@ export default function Dashboard() {
       {newAchievements.length > 0 && (
         <AchievementPopup achievementIds={newAchievements} onClose={() => setNewAchievements([])} />
       )}
+
+      {showBreathing && <BreathingExercise onClose={() => setShowBreathing(false)} />}
 
       <StarOrb moodToday={mood} />
     </div>

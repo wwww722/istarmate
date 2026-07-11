@@ -221,3 +221,20 @@ CREATE TABLE IF NOT EXISTS code_versions (
   version_note TEXT DEFAULT '',
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 情绪日记：给mood_logs加备注字段
+ALTER TABLE mood_logs ADD COLUMN IF NOT EXISTS note TEXT DEFAULT '';
+
+-- 一键分享：给code_snippets加公开分享短ID
+ALTER TABLE code_snippets ADD COLUMN IF NOT EXISTS share_id TEXT UNIQUE;
+
+-- AI课程学习进度
+CREATE TABLE IF NOT EXISTS course_progress (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  stage INTEGER NOT NULL DEFAULT 1,
+  completed_stages TEXT DEFAULT '',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id)
+);

@@ -23,10 +23,10 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { mood } = req.body || {};
+    const { mood, note } = req.body || {};
     if (!mood) return res.status(400).json({ error: "缺少 mood" });
 
-    await saveMoodLog(userId, todayStr(), mood);
+    await saveMoodLog(userId, todayStr(), mood, note || "");
 
     // 检查成就
     const existing = (await getAchievements(userId)).map(a => a.achievement_id);

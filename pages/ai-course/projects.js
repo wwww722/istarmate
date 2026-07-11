@@ -107,6 +107,28 @@ export default function MyProjects() {
     window.open(URL.createObjectURL(blob), "_blank");
   }
 
+  async function shareLink(snippet) {
+    try {
+      const r = await fetch("/api/share-snippet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snippetId: snippet.id }),
+      });
+      const data = await r.json();
+      if (data.shareId) {
+        const url = `${window.location.origin}/p/${data.shareId}`;
+        if (navigator.share) {
+          navigator.share({ title: snippet.title, text: "看看我用AI做的网站！", url });
+        } else {
+          await navigator.clipboard?.writeText(url);
+          alert(`🔗 分享链接已复制：\n${url}\n\n发给朋友，他们打开就能看到你做的网站！`);
+        }
+      }
+    } catch {
+      alert("生成链接失败，请重试");
+    }
+  }
+
   if (status !== "authenticated") return null;
   if (loading) return <PageSkeleton cards={2} />;
 
@@ -145,6 +167,9 @@ export default function MyProjects() {
             <button className="btn primary" style={{ flex: 1, minWidth: 120 }} onClick={() => previewCode(selected.code)}>🌐 在浏览器预览</button>
             <button className="btn" style={{ flex: 1, minWidth: 120 }} onClick={() => navigator.clipboard?.writeText(selected.code)}>📋 复制代码</button>
           </div>
+          <button className="btn" style={{ marginBottom: 8, color: "var(--teal-deep)", borderColor: "var(--teal)" }} onClick={() => shareLink(selected)}>
+            🔗 生成分享链接（发给朋友直接看）
+          </button>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
             <button className="btn" style={{ flex: 1, minWidth: 120, marginBottom: 0, color: selected.is_public ? "var(--coral-deep)" : "var(--purple-deep)", borderColor: selected.is_public ? "var(--coral-deep)" : "var(--purple)" }}
               onClick={() => togglePublic(selected)}>
