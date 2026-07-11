@@ -14,6 +14,11 @@ export default async function handler(req, res) {
   const { messages } = req.body || {};
   if (!Array.isArray(messages)) return res.status(400).json({ error: "缺少 messages" });
 
+  // 只把最近 12 条对话发给模型。
+  // 更早的内容由 chat_summaries（记忆摘要）承载——历史全量塞进去会稀释系统提示词，
+  // 让回复变浅、变慢。摘要 + 近期对话，才是又快又有深度的组合。
+  const recentMessages = messages.slice(-12);
+
   const userId = Number(session.userId);
   const [profile, q, summaries] = await Promise.all([
     getProfile(userId),
@@ -44,11 +49,17 @@ export default async function handler(req, res) {
 4. 温和地引导TA说出自己的想法和解决方案
 5. 必要时分享专业视角，但用提问方式表达
 
+【深度——这是你最重要的品质】
+- 抓住对方话里最有分量的那个细节，而不是回应表面意思
+- 听见没说出口的东西：犹豫、回避、矛盾、言外之意
+- 你的回应要让对方有"被真正看懂了"的感觉，而不只是"被安慰了"
+- 宁可少说，也不说空话
+
 【说话规则】
-- 禁用套话：不说"我理解你的感受"、"当然"、"这很正常"
+- 禁用套话：不说"我理解你的感受"、"当然"、"这很正常"、"听起来你很难过"
 - 每次2-4句，给对方说话的空间
 - 一次只问一个问题
-- 如有记忆，在合适时自然提及（"上次你提到..."）
+- 如有记忆，在合适时自然提及（"上次你提到..."），但不要每次都提
 
 【用户信息】
 昵称：${profile?.nickname || "朋友"}，${profile?.age ? profile.age + "岁" : ""}，${profile?.gender || ""}
@@ -58,5 +69,5 @@ ${concernLines || "- 整体平稳"}
 ${crisisNote}
 ${memorySection}`;
 
-  await streamSiliconFlow(res, systemPrompt, messages, 600);
+  await streamSiliconFlow(res, systemPrompt, recentMessages, 800);
 }

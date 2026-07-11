@@ -133,6 +133,11 @@ export default function Chat() {
         setStreamingText("");
         setLoading(false);
         saveHistory(next);
+        // 聊满3轮就自动保存对话摘要，让星伴跨对话记住你（不再依赖点赞）
+        const userTurns = next.filter(m => m.role === "user" && !m.content.startsWith("（")).length;
+        if (userTurns >= 3 && userTurns % 2 === 1) {
+          fetch("/api/chat-summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next }) }).catch(() => {});
+        }
         if (next.filter(m => m.role === "assistant").length === 1) {
           fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_chat" }) }).catch(() => {});
         }
@@ -149,9 +154,6 @@ export default function Chat() {
   function msgFeedback(msgIndex, rating) {
     setFeedbackMap(prev => ({ ...prev, [msgIndex]: rating }));
     fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ context: "chat", rating }) }).catch(() => {});
-    if (rating === 1 && messages.length >= 4) {
-      fetch("/api/chat-summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) }).catch(() => {});
-    }
   }
 
   function switchTheme() {

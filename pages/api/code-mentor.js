@@ -82,5 +82,7 @@ export default async function handler(req, res) {
 
 ${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}`;
 
-  await streamSiliconFlow(res, systemPrompt, messages, 3000);
+  // 只发最近16条对话：沙盒代码已经单独注入system prompt了，
+  // 历史全塞会挤占上下文，让代码星变慢变浅
+  await streamSiliconFlow(res, systemPrompt, messages.slice(-16), 3000);
 }
