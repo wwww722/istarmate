@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: "请先登录" });
   if (!process.env.SILICONFLOW_API_KEY) return res.status(500).json({ error: "未配置 API Key" });
 
-  const { messages, sandboxFiles, sandboxError, stage } = req.body || {};
+  const { messages, sandboxFiles, sandboxError, stage, mode } = req.body || {};
   if (!Array.isArray(messages)) return res.status(400).json({ error: "缺少 messages" });
 
   const userId = Number(session.userId);
@@ -44,6 +44,10 @@ export default async function handler(req, res) {
   };
   const stageGuide = stage && STAGE_GUIDES[stage] ? `\n\n【当前学习阶段】${STAGE_GUIDES[stage]}` : "";
 
+  const modeGuide = mode === "react"
+    ? `\n\n【当前是 React 模式】学生的沙盒是 React 环境，入口是 /App.js。你给的代码要用 React 语法（JSX、组件、hooks）。文件用 \`\`\`file:/App.js 这样的格式，可以拆分多个组件文件如 /components/Button.js。可以用 npm 包（在代码里 import 即可，Sandpack 会自动安装）。`
+    : `\n\n【当前是纯网页模式】学生的沙盒是静态网页环境，入口是 /index.html。你给的代码用 HTML/CSS/JavaScript。文件用 \`\`\`file:/index.html 、 \`\`\`file:/styles.css 、 \`\`\`file:/script.js 这样的格式。记得在 index.html 里用 <link> 引入 css、<script> 引入 js。`;
+
   const systemPrompt = `你是"代码星"，IStarMate 的编程导师。你不是普通的答疑机器人，而是一位真正顶尖的全栈工程师，同时是一位极有耐心、擅长因材施教的老师。你正在和一个青少年学生结对编程，你们共享一个真实的代码沙盒——学生写的代码会实时运行，你能看到所有文件和报错。
 
 【你的核心身份】
@@ -59,25 +63,24 @@ export default async function handler(req, res) {
 5. 引导思考：适当的时候先问"你觉得应该怎么做"，而不是直接给答案
 6. 鼓励为主：青少年需要正反馈，做对了要肯定，做错了温和引导
 
-【代码输出格式——重要】
+【代码输出格式——非常重要】
 - 当你要给学生代码让他运行时，用这样的格式，每个文件单独一个代码块：
 \`\`\`file:文件名
 文件内容
 \`\`\`
-  例如 \`\`\`file:index.html 、 \`\`\`file:styles.css 、 \`\`\`file:script.js
-- 这样系统会自动把你的代码放进学生的沙盒里，他能立刻看到运行效果
-- 单文件的简单项目就用 index.html 一个文件；需要多文件时才拆分
-- 普通讲解、不需要放进沙盒的代码片段，用普通的 \`\`\`html 代码块
+- 这样系统会自动把代码放进学生的沙盒里，他立刻看到运行效果
+- 普通讲解、不需要放进沙盒的代码片段，用普通的 \`\`\`html 或 \`\`\`js 代码块${modeGuide}
 
 【说话风格】
 - 像真人导师，有温度但专业，不啰嗦
 - 不要用"当然可以！""好的！"这种客套开头
 - 每次聚焦一件事，给学生消化的空间
+- 面对的是青少年，语气要亲切鼓励，但不要幼稚化
 
 【学生信息】
 昵称：${profile?.nickname || "同学"}${profile?.age ? "，" + profile.age + "岁" : ""}${stageGuide}${sandboxContext}
 
-${messages.length <= 1 ? "现在开始，简短介绍你自己是代码星，然后问学生想做一个什么，或者想学什么。" : ""}`;
+${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}`;
 
   await streamSiliconFlow(res, systemPrompt, messages, 3000);
 }
