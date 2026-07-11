@@ -100,16 +100,39 @@ export default function StarOrb({ moodToday }) {
     setOpen(true);
     if (!initialized) {
       setInitialized(true);
-      let openingContent;
-      if (careSignal) {
-        openingContent = `（这个用户已经连续${careSignal.days}天打卡心情都是低落或很差。请以星伴身份，用真诚温柔、不夸张的语气，让TA感到被看见——不要生硬地说"我发现你连续几天"，而是自然地表达关心，轻轻邀请TA说说最近发生了什么。简短、有温度。）`;
-      } else if (moodToday === "down" || moodToday === "bad") {
-        openingContent = `（用户今天打卡选了心情"${moodToday === "down" ? "低落" : "很差"}"，请以星伴身份，不要生硬提到"打卡"，而是自然地感知到TA的状态，温柔地引出话题，问问发生了什么）`;
-      } else {
-        openingContent = "（以星伴身份，根据现在的时间段，用一句温暖有新鲜感的话打招呼，问问用户今天过得怎么样，简短自然）";
-      }
-      runStream([{ role: "user", content: openingContent }], []);
+      loadHistoryOrGreet();
     }
+  }
+
+  async function loadHistoryOrGreet() {
+    try {
+      const r = await fetch("/api/companion-session");
+      const data = await r.json();
+      if (Array.isArray(data.messages) && data.messages.length > 0) {
+        setMessages(data.messages);
+        return;
+      }
+    } catch {}
+    // 无历史，按情况打招呼
+    let openingContent;
+    if (careSignal) {
+      openingContent = `（这个用户已经连续${careSignal.days}天打卡心情都是低落或很差。请以星伴身份，用真诚温柔、不夸张的语气，让TA感到被看见——不要生硬地说"我发现你连续几天"，而是自然地表达关心，轻轻邀请TA说说最近发生了什么。简短、有温度。）`;
+    } else if (moodToday === "down" || moodToday === "bad") {
+      openingContent = `（用户今天打卡选了心情"${moodToday === "down" ? "低落" : "很差"}"，请以星伴身份，不要生硬提到"打卡"，而是自然地感知到TA的状态，温柔地引出话题，问问发生了什么）`;
+    } else {
+      openingContent = "（以星伴身份，根据现在的时间段，用一句温暖有新鲜感的话打招呼，问问用户今天过得怎么样，简短自然）";
+    }
+    runStream([{ role: "user", content: openingContent }], []);
+  }
+
+  function saveHistory(msgs) {
+    const clean = msgs.filter(m => !(m.role === "user" && m.content.startsWith("（")));
+    if (clean.length === 0) return;
+    fetch("/api/companion-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: clean }),
+    }).catch(() => {});
   }
 
   async function runStream(apiMessages, displayMessages) {
@@ -119,9 +142,11 @@ export default function StarOrb({ moodToday }) {
     await streamFetch("/api/chat", apiMessages,
       (token) => { fullText += token; setStreamingText(fullText); },
       () => {
-        setMessages([...displayMessages, { role: "assistant", content: fullText }]);
+        const next = [...displayMessages, { role: "assistant", content: fullText }];
+        setMessages(next);
         setStreamingText("");
         setLoading(false);
+        saveHistory(next);
       },
       (err) => {
         setMessages([...displayMessages, { role: "assistant", content: `（${err}）` }]);

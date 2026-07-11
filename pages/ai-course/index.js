@@ -52,8 +52,11 @@ export default function AiCourse() {
       ))}
 
       <div style={{ marginTop: 28 }}>
-        <button className="btn primary" onClick={() => router.push("/ai-course/path")}>
-          📚 跟着学习地图一步步学 →
+        <button className="btn primary" onClick={() => router.push("/ai-course/studio")}>
+          🚀 进入代码星工作室（边写边跑）
+        </button>
+        <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/path")}>
+          📚 跟着学习地图一步步学
         </button>
         <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/chat")}>
           💬 自由和代码星聊

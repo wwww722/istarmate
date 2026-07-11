@@ -29,8 +29,7 @@ export default function Chat() {
     if (status === "unauthenticated") router.replace("/login");
     if (status === "authenticated" && !opened && router.isReady) {
       setOpened(true);
-      const moodLabel = router.query.mood;
-      openChat(moodLabel);
+      loadHistory();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, router.isReady]);
@@ -38,6 +37,42 @@ export default function Chat() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
+
+  async function loadHistory() {
+    try {
+      const r = await fetch("/api/companion-session");
+      const data = await r.json();
+      if (Array.isArray(data.messages) && data.messages.length > 0) {
+        // 有历史记录，直接恢复，不重新打招呼
+        setMessages(data.messages);
+        if (data.messages.filter(m => m.role === "user").length >= 3) setShowFeedback(true);
+        return;
+      }
+    } catch {}
+    // 没有历史，正常开场
+    const moodLabel = router.query.mood;
+    openChat(moodLabel);
+  }
+
+  async function saveHistory(msgs) {
+    // 过滤掉隐藏的指令消息（以括号开头的user消息），只存真实对话
+    const clean = msgs.filter(m => !(m.role === "user" && m.content.startsWith("（")));
+    if (clean.length === 0) return;
+    fetch("/api/companion-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: clean }),
+    }).catch(() => {});
+  }
+
+  async function newConversation() {
+    if (!confirm("开始新对话？当前的聊天记录会被清空。")) return;
+    await fetch("/api/companion-session", { method: "DELETE" }).catch(() => {});
+    setMessages([]);
+    setShowFeedback(false);
+    setFeedback(null);
+    openChat(null);
+  }
 
   async function openChat(moodLabel) {
     const content = moodLabel
@@ -87,6 +122,7 @@ export default function Chat() {
         setMessages(next);
         setStreamingText("");
         setLoading(false);
+        saveHistory(next);
         if (next.filter(m => m.role === "user").length >= 3) setShowFeedback(true);
         if (next.filter(m => m.role === "assistant").length === 1) {
           fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_chat" }) }).catch(() => {});
@@ -117,7 +153,11 @@ export default function Chat() {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }}
           style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
-        <p style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>和星伴聊聊</p>
+        <p style={{ fontSize: 15, fontWeight: 500, margin: 0, flex: 1 }}>和星伴聊聊</p>
+        <button onClick={newConversation}
+          style={{ background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 12.5, padding: "6px 12px", borderRadius: 16, cursor: "pointer", fontWeight: 500 }}>
+          新对话
+        </button>
       </div>
 
       {/* 危机提醒横幅 */}

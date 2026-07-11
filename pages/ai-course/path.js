@@ -51,7 +51,7 @@ export default function LearningPath() {
   }
 
   function startStage(stage) {
-    router.push(`/ai-course/chat?stage=${stage.num}`);
+    router.push(`/ai-course/studio?stage=${stage.num}`);
   }
 
   if (status !== "authenticated" || loading) return null;

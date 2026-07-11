@@ -245,3 +245,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS security_answer_hash TEXT;
 
 -- 管理员标记（手动把自己的账号设为TRUE）
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+
+-- 星伴聊天历史（完整对话，跨会话保存）
+CREATE TABLE IF NOT EXISTS companion_sessions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  messages JSONB NOT NULL DEFAULT '[]',
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id)
+);
