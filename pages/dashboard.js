@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [diaryMood, setDiaryMood] = useState(null);
   const [diaryNote, setDiaryNote] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
   const [selectedMoodLabel, setSelectedMoodLabel] = useState("");
   const [loading, setLoading] = useState(true);
@@ -74,6 +75,8 @@ export default function Dashboard() {
     const aiData = await aiRes.json();
     setAiCourseActive(aiData.messages?.length > 1);
     setLoading(false);
+    // 轻量检查是否管理员（失败静默）
+    fetch("/api/admin").then(r => { if (r.ok) setIsAdminUser(true); }).catch(() => {});
   }
 
   async function selectMood(m) {
@@ -188,6 +191,7 @@ export default function Dashboard() {
                   { label: "📔 情绪日记", action: () => router.push("/mood-diary") },
                   { label: "🌬️ 呼吸练习", action: () => { setShowSettings(false); setShowBreathing(true); } },
                   { label: "⚙️ 账号设置", action: () => router.push("/account") },
+                  ...(isAdminUser ? [{ label: "🛠️ 管理后台", action: () => router.push("/admin") }] : []),
                   { label: "🚪 退出登录", action: () => signOut({ callbackUrl: "/login" }), danger: true },
                 ].map((item, i) => (
                   <button key={i} onClick={() => { setShowSettings(false); item.action(); }} style={{

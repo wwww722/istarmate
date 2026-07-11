@@ -8,8 +8,18 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [securityQuestion, setSecurityQuestion] = useState("");
+  const [securityAnswer, setSecurityAnswer] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const SECURITY_QUESTIONS = [
+    "我小学的名字是？",
+    "我最好的朋友的名字是？",
+    "我养过的第一只宠物叫什么？",
+    "我出生的城市是？",
+    "我最喜欢的老师姓什么？",
+  ];
 
   // 从URL自动读取邀请码
   useEffect(() => {
@@ -28,7 +38,7 @@ export default function Login() {
         const r = await fetch("/api/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, securityQuestion, securityAnswer }),
         });
         let data = {};
         try { data = await r.json(); } catch {}
@@ -82,6 +92,20 @@ export default function Login() {
             {mode === "register" && (
               <>
                 <label style={{ fontSize: 13, color: "var(--ink-soft)", fontWeight: 500, display: "block", marginBottom: 6 }}>
+                  安全问题 <span style={{ color: "var(--ink-muted)", fontWeight: 400 }}>（用于忘记密码时找回）</span>
+                </label>
+                <select className="input" value={securityQuestion}
+                  onChange={e => setSecurityQuestion(e.target.value)}
+                  style={{ cursor: "pointer" }}>
+                  <option value="">选择一个安全问题...</option>
+                  {SECURITY_QUESTIONS.map((q, i) => <option key={i} value={q}>{q}</option>)}
+                </select>
+                {securityQuestion && (
+                  <input className="input" type="text" placeholder="你的答案（请记牢）"
+                    value={securityAnswer} onChange={e => setSecurityAnswer(e.target.value)} />
+                )}
+
+                <label style={{ fontSize: 13, color: "var(--ink-soft)", fontWeight: 500, display: "block", marginBottom: 6 }}>
                   邀请码 <span style={{ color: "var(--ink-muted)", fontWeight: 400 }}>（选填）</span>
                 </label>
                 <input className="input" type="text" placeholder="例如 ISMABCD"
@@ -109,6 +133,14 @@ export default function Login() {
               {mode === "login" ? "立即注册" : "直接登录"}
             </a>
           </p>
+          {mode === "login" && (
+            <p style={{ textAlign: "center", fontSize: 13, marginTop: 10, marginBottom: 0 }}>
+              <a href="#" onClick={e => { e.preventDefault(); router.push("/forgot-password"); }}
+                style={{ color: "var(--ink-soft)", textDecoration: "none" }}>
+                忘记密码？
+              </a>
+            </p>
+          )}
         </div>
 
         <p style={{ textAlign: "center", fontSize: 12, color: "var(--ink-muted)", marginTop: 20, lineHeight: 1.7 }}>

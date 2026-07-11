@@ -238,3 +238,10 @@ CREATE TABLE IF NOT EXISTS course_progress (
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id)
 );
+
+-- 密码找回：安全问题
+ALTER TABLE users ADD COLUMN IF NOT EXISTS security_question TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS security_answer_hash TEXT;
+
+-- 管理员标记（手动把自己的账号设为TRUE）
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;

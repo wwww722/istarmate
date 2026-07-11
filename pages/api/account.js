@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import {
   getUserById, getUserByEmail, updateUserEmail, updateUserPassword,
   deleteUserAccount, getProfile, getLatestQuestionnaire, getMoodLogs,
-  getAchievements, getCodeSnippets,
+  getAchievements, getCodeSnippets, setSecurityQuestion,
 } from "../../lib/db";
 
 // 需要读取带 password_hash 的完整用户记录来校验旧密码
@@ -89,6 +89,14 @@ export default async function handler(req, res) {
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(400).json({ error: "密码不正确" });
     await deleteUserAccount(userId);
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === "POST" && req.body?.action === "set-security") {
+    const { question, answer } = req.body;
+    if (!question || !answer) return res.status(400).json({ error: "请填写问题和答案" });
+    const answerHash = await bcrypt.hash(answer.trim().toLowerCase(), 10);
+    await setSecurityQuestion(userId, question, answerHash);
     return res.status(200).json({ ok: true });
   }
 
