@@ -218,9 +218,12 @@ export default function Studio() {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
       {/* 顶栏 */}
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, background: "rgba(245,243,255,0.95)", flexShrink: 0 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/ai-course"); }} style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
-        <div style={{ flex: 1 }}>
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, background: "rgba(245,243,255,0.95)", flexShrink: 0, position: "relative", zIndex: 10 }}>
+        <button onClick={() => router.push("/ai-course")}
+          style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>
+          ← 退出
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星工作室</p>
           <p style={{ fontSize: 11, color: "var(--ink-soft)", margin: 0 }}>和代码星一起，边写边跑</p>
         </div>
@@ -248,6 +251,22 @@ export default function Studio() {
           .studio-mobile-tabs { display: flex !important; }
         }
       `}</style>
+
+      {/* 保底浮动退出按钮：任何情况下都能退出 */}
+      <button
+        onClick={() => router.push("/ai-course")}
+        title="退出工作室"
+        style={{
+          position: "fixed", top: 12, right: 12, zIndex: 9999,
+          width: 40, height: 40, borderRadius: "50%",
+          background: "rgba(124,111,224,0.9)", color: "#fff",
+          border: "2px solid #fff", cursor: "pointer", fontSize: 18,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 }
