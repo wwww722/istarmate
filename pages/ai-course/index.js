@@ -52,21 +52,22 @@ export default function AiCourse() {
       ))}
 
       <div style={{ marginTop: 28 }}>
-        <button className="btn primary" onClick={() => router.push("/ai-course/studio")}>
-          🚀 进入代码星工作室（边写边跑）
+        <button className="btn primary" onClick={() => router.push("/ai-course/studio")}
+          style={{ fontSize: 16, padding: "16px" }}>
+          🚀 开始创作
         </button>
-        <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/path")}>
-          📚 跟着学习地图一步步学
-        </button>
-        <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/chat")}>
-          💬 自由和代码星聊
-        </button>
-        <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/projects")}>
-          我的项目 →
-        </button>
-        <button className="btn" style={{ marginTop: 10 }} onClick={() => router.push("/ai-course/showcase")}>
-          🏛️ 作品展示墙
-        </button>
+        <p style={{ fontSize: 12, color: "var(--ink-soft)", textAlign: "center", margin: "10px 0 20px" }}>
+          进入工作室，代码星会带你从零做出第一个作品
+        </p>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn" style={{ flex: 1 }} onClick={() => router.push("/ai-course/projects")}>
+            💻 我的项目
+          </button>
+          <button className="btn" style={{ flex: 1 }} onClick={() => router.push("/ai-course/showcase")}>
+            🏛️ 展示墙
+          </button>
+        </div>
       </div>
 
       <p style={{ fontSize: 12.5, color: "var(--ink-soft)", textAlign: "center", marginTop: 20 }}>

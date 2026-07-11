@@ -1,6 +1,5 @@
 // components/SandpackStudio.js
-// 真实运行的代码沙盒：文件树 + 编辑器 + 实时预览 + 控制台
-// 用 Sandpack (CodeSandbox 官方开源库)
+// 全能代码沙盒：文件树 + 多标签编辑器 + 实时预览 + 控制台
 import { useEffect } from "react";
 import {
   SandpackProvider,
@@ -12,22 +11,19 @@ import {
   useSandpack,
 } from "@codesandbox/sandpack-react";
 
-// 监听沙盒文件变化和报错，同步回父组件
-function SandpackBridge({ onFilesChange, onError }) {
+function SandpackBridge({ onFilesChange, onError, onReady }) {
   const { sandpack, listen } = useSandpack();
 
-  // 文件变化时同步给父组件
   useEffect(() => {
     if (!onFilesChange) return;
     const out = {};
     for (const [path, file] of Object.entries(sandpack.files)) {
-      out[path] = file.code;
+      if (!file.hidden) out[path] = file.code;
     }
     onFilesChange(out);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sandpack.files]);
 
-  // 监听运行时报错
   useEffect(() => {
     if (!onError) return;
     const stop = listen((msg) => {
@@ -41,16 +37,19 @@ function SandpackBridge({ onFilesChange, onError }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (onReady) onReady(sandpack);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sandpack]);
+
   return null;
 }
 
-export default function SandpackStudio({ files, onFilesChange, onError }) {
-  // 把 { "/index.html": "..." } 转成 Sandpack 需要的格式
+export default function SandpackStudio({ files, template = "static", onFilesChange, onError, onReady }) {
   const sandpackFiles = {};
   for (const [path, content] of Object.entries(files || {})) {
     sandpackFiles[path] = { code: typeof content === "string" ? content : (content?.code || "") };
   }
-  // 兜底：至少要有一个 index.html
   if (Object.keys(sandpackFiles).length === 0) {
     sandpackFiles["/index.html"] = { code: "<h1>开始写代码吧</h1>" };
   }
@@ -58,28 +57,35 @@ export default function SandpackStudio({ files, onFilesChange, onError }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <SandpackProvider
-        template="static"
+        template={template}
         files={sandpackFiles}
         theme="dark"
-        options={{ recompileMode: "delayed", recompileDelay: 600 }}
+        options={{ recompileMode: "delayed", recompileDelay: 500 }}
         style={{ height: "100%" }}
       >
-        <SandpackBridge onFilesChange={onFilesChange} onError={onError} />
-        <SandpackLayout style={{ height: "100%", border: "none", borderRadius: 0 }}>
-          <SandpackFileExplorer style={{ height: "100%", minWidth: 130 }} />
+        <SandpackBridge onFilesChange={onFilesChange} onError={onError} onReady={onReady} />
+        <SandpackLayout style={{ height: "100%", border: "none", borderRadius: 0, background: "#0d0d17" }}>
+          <SandpackFileExplorer style={{ height: "100%", minWidth: 140, maxWidth: 180 }} />
           <SandpackCodeEditor
-            style={{ height: "100%" }}
+            style={{ height: "100%", flex: 1.2 }}
             showTabs
             showLineNumbers
+            showInlineErrors
             wrapContent
+            closableTabs
           />
           <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
             <SandpackPreview
               style={{ flex: 1, minHeight: 0 }}
               showOpenInCodeSandbox={false}
               showRefreshButton
+              showRestartButton
             />
-            <SandpackConsole style={{ height: 140, borderTop: "1px solid #2a2a3e" }} />
+            <SandpackConsole
+              style={{ height: 150, borderTop: "1px solid #2a2a3e" }}
+              showHeader
+              resetOnPreviewRestart
+            />
           </div>
         </SandpackLayout>
       </SandpackProvider>

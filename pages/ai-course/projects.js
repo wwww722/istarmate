@@ -150,7 +150,7 @@ export default function MyProjects() {
           <p style={{ color: "var(--ink-soft)", fontSize: 14.5, lineHeight: 1.8 }}>
             还没有保存的项目。<br />在AI编程课里做出代码后，<br />点代码块右上角的 💾 保存 就会出现在这里。
           </p>
-          <button className="btn primary" style={{ marginTop: 16 }} onClick={() => router.push("/ai-course/chat")}>
+          <button className="btn primary" style={{ marginTop: 16 }} onClick={() => router.push("/ai-course/studio")}>
             去做我的第一个网站 →
           </button>
         </div>

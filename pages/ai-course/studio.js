@@ -71,6 +71,7 @@ export default function Studio() {
   const [files, setFiles] = useState(DEFAULT_FILES);
   const [sandboxError, setSandboxError] = useState(null);
   const [mobileTab, setMobileTab] = useState("chat"); // chat | code (窄屏切换)
+  const [dark, setDark] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
@@ -79,6 +80,7 @@ export default function Studio() {
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
     if (status === "authenticated" && !opened) { setOpened(true); openChat(); }
+    if (typeof window !== "undefined") { try { setDark((localStorage.getItem("istarmate_theme")||"light")==="dark"); } catch {} }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
@@ -171,6 +173,26 @@ export default function Studio() {
   const chatPanel = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 0" }}>
+        {/* 首次进入时显示学习方向选择 */}
+        {messages.length <= 1 && !loading && (
+          <div style={{ marginBottom: 16, padding: "14px 16px", background: "var(--purple-light)", borderRadius: 14 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, margin: "0 0 4px", color: "var(--purple-deep)" }}>💡 想学点什么？</p>
+            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: "0 0 10px" }}>可以直接说你想做什么，或者选一个方向：</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {[
+                { s: 1, t: "🌱 我完全是新手" },
+                { s: 2, t: "🎨 学做好看的页面" },
+                { s: 3, t: "⚡ 学做交互功能" },
+                { s: 4, t: "🚀 做个完整小应用" },
+              ].map(({ s, t }) => (
+                <button key={s} onClick={() => { setInput(`我想学第${s}课的内容`); }}
+                  style={{ background: "#fff", border: "1px solid rgba(124,111,224,0.2)", color: "var(--purple-deep)", fontSize: 12.5, padding: "6px 12px", borderRadius: 16, cursor: "pointer" }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {allMessages.map((m, i) => (
           <div key={i} style={{ display: "flex", gap: 10, marginBottom: 18, flexDirection: m.role === "user" ? "row-reverse" : "row", alignItems: "flex-start" }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, background: m.role === "user" ? "linear-gradient(135deg, var(--purple), var(--purple-deep))" : "linear-gradient(135deg, #2a2a3e, #1a1a2e)" }}>
@@ -227,6 +249,10 @@ export default function Studio() {
           <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星工作室</p>
           <p style={{ fontSize: 11, color: "var(--ink-soft)", margin: 0 }}>和代码星一起，边写边跑</p>
         </div>
+        <button onClick={() => { const t = require("../../lib/theme").toggleTheme(); setDark(t === "dark"); }} title="切换主题"
+          style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", padding: "4px 6px" }}>
+          {dark ? "☀️" : "🌙"}
+        </button>
         {/* 窄屏切换 */}
         <div className="studio-mobile-tabs" style={{ display: "none", gap: 4, background: "var(--purple-light)", borderRadius: 20, padding: 3 }}>
           <button onClick={() => setMobileTab("chat")} style={{ border: "none", background: mobileTab === "chat" ? "#fff" : "transparent", color: "var(--ink)", fontSize: 12.5, padding: "5px 12px", borderRadius: 16, cursor: "pointer" }}>对话</button>

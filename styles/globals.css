@@ -25,6 +25,35 @@
   --radius-sm: 12px;
 }
 
+html[data-theme="dark"] {
+  --bg: #14121F;
+  --bg2: #1C1A2E;
+  --ink: #ECE9F5;
+  --ink-soft: #A39FC0;
+  --ink-muted: #6B6785;
+  --purple: #9B8FF0;
+  --purple-deep: #B8AEFF;
+  --purple-light: #26233A;
+  --purple-glow: rgba(155, 143, 240, 0.25);
+  --teal: #4FD1B5;
+  --teal-deep: #7EE0CC;
+  --coral: #FF7B7B;
+  --coral-deep: #FF9B9B;
+  --gold: #F0B84A;
+  --line: rgba(155, 143, 240, 0.15);
+  --card: rgba(38, 35, 58, 0.75);
+  --card-solid: #221F36;
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="dark"] body {
+  background-image:
+    radial-gradient(ellipse at 20% 10%, rgba(155,143,240,0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 90%, rgba(79,209,181,0.06) 0%, transparent 50%);
+}
+
 * { box-sizing: border-box; }
 
 body {

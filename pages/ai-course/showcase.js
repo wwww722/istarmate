@@ -48,7 +48,7 @@ export default function Showcase() {
             展示墙还没有作品。<br />你做的第一个网站，会是第一件展品吗？
           </p>
           <button className="btn primary" style={{ marginTop: 16 }}
-            onClick={() => router.push("/ai-course/chat")}>
+            onClick={() => router.push("/ai-course/studio")}>
             去做我的第一个网站 →
           </button>
         </div>

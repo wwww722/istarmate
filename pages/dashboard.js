@@ -234,7 +234,7 @@ export default function Dashboard() {
       {/* 今日状态整合 */}
       {aiCourseActive && (
         <div className="card" style={{ marginBottom: 16, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}
-          onClick={() => router.push("/ai-course/chat")} style={{ cursor: "pointer", marginBottom: 16 }}>
+          onClick={() => router.push("/ai-course/studio")} style={{ cursor: "pointer", marginBottom: 16 }}>
           <div style={{ fontSize: 28 }}>💻</div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 13.5, fontWeight: 500, margin: "0 0 2px" }}>AI 素养课程进行中</p>
