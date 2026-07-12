@@ -14,10 +14,13 @@ export default async function handler(req, res) {
   const { messages } = req.body || {};
   if (!Array.isArray(messages)) return res.status(400).json({ error: "缺少 messages" });
 
-  // 只把最近 12 条对话发给模型。
-  // 更早的内容由 chat_summaries（记忆摘要）承载——历史全量塞进去会稀释系统提示词，
-  // 让回复变浅、变慢。摘要 + 近期对话，才是又快又有深度的组合。
-  const recentMessages = messages.slice(-12);
+  // 只把最近对话发给模型。更早的内容由 chat_summaries（记忆摘要）承载——
+  // 历史全量塞进去会稀释系统提示词，让回复变浅、变慢。
+  // 含图片时历史更短：图片本身很耗 token。
+  const hasImg = messages.some(m =>
+    Array.isArray(m.content) && m.content.some(p => p?.type === "image_url")
+  );
+  const recentMessages = messages.slice(hasImg ? -6 : -12);
 
   const userId = Number(session.userId);
   const [profile, q, summaries] = await Promise.all([

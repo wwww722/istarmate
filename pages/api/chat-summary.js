@@ -23,7 +23,12 @@ export default async function handler(req, res) {
     if (!process.env.SILICONFLOW_API_KEY) return res.status(500).json({ error: "未配置API Key" });
 
     // 只取用户说的话来总结
-    const userMessages = messages.filter(m => m.role === "user").map(m => m.content).join("\n");
+    const textOf = (c) => {
+      if (typeof c === "string") return c;
+      if (Array.isArray(c)) return c.filter(p => p?.type === "text").map(p => p.text || "").join("");
+      return "";
+    };
+    const userMessages = messages.filter(m => m.role === "user").map(m => textOf(m.content)).join("\n");
 
     const prompt = `以下是一个青少年和心理陪伴AI"星伴"的对话中，用户说的话：
 

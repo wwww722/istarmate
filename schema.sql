@@ -254,3 +254,19 @@ CREATE TABLE IF NOT EXISTS companion_sessions (
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(user_id)
 );
+
+-- ===== 多会话管理（星伴 + 代码星共用）=====
+CREATE TABLE IF NOT EXISTS conversations (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL DEFAULT 'companion',  -- 'companion'(星伴) | 'code'(代码星)
+  title TEXT NOT NULL DEFAULT '新对话',
+  messages JSONB NOT NULL DEFAULT '[]',
+  meta JSONB DEFAULT '{}',                 -- 代码星存 mode/files 等
+  archived BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversations_user_kind
+  ON conversations(user_id, kind, updated_at DESC);

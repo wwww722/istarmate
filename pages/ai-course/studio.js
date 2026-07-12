@@ -6,6 +6,8 @@ import { streamFetch } from "../../lib/useStreamChat";
 import { parseFileBlocks, stripFileBlocks } from "../../lib/parseCodeBlocks";
 import { RichText } from "../../lib/richText";
 import ChatInput from "../../components/ChatInput";
+import ConversationSidebar from "../../components/ConversationSidebar";
+import { TEMPLATES } from "../../lib/projectTemplates";
 import { toggleTheme } from "../../lib/theme";
 
 const SandpackStudio = dynamic(() => import("../../components/SandpackStudio"), {
@@ -22,7 +24,7 @@ const STARTER_STATIC = {
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>我的第一个网页</title>
+  <title>我的网页</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -60,7 +62,7 @@ function ThinkingDots() {
   );
 }
 
-function MentorMessage({ content, streaming, onCopy, onRegenerate, isLast }) {
+function MentorMessage({ content, streaming, onRegenerate, isLast }) {
   const [copied, setCopied] = useState(false);
   const stripped = stripFileBlocks(content);
   function copy() {
@@ -91,25 +93,30 @@ const miniBtn = { background: "transparent", border: "none", color: "var(--ink-m
 export default function Studio() {
   const router = useRouter();
   const { status } = useSession();
-  const [mode, setMode] = useState(null); // null=未选择, "static", "react"
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [mode, setMode] = useState(null);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [messages, setMessages] = useState([]);
   const [streamingText, setStreamingText] = useState("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [opened, setOpened] = useState(false);
+  const [booted, setBooted] = useState(false);
   const [initialFiles, setInitialFiles] = useState(STARTER_STATIC);
   const [filesToInject, setFilesToInject] = useState(null);
   const [injectVersion, setInjectVersion] = useState(0);
-  const currentFilesRef = useRef(STARTER_STATIC); // 沙盒当前代码快照（供AI读取）
   const [sandboxError, setSandboxError] = useState(null);
+  const [autoFixOffered, setAutoFixOffered] = useState(false);
   const [mobileTab, setMobileTab] = useState("chat");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const currentFilesRef = useRef(STARTER_STATIC);
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
-  const stageParam = router.query.stage ? Number(router.query.stage) : null;
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
+    if (status === "authenticated" && !booted) { setBooted(true); boot(); }
     if (typeof window !== "undefined") { try { setDark((localStorage.getItem("istarmate_theme") || "light") === "dark"); } catch {} }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
@@ -118,13 +125,97 @@ export default function Studio() {
     bottomRef.current?.scrollIntoView({ behavior: streamingText ? "auto" : "smooth" });
   }, [messages, streamingText]);
 
-  function chooseMode(m) {
-    setMode(m);
+  // 沙盒报错时，主动提议修复（每次新错误只提议一次）
+  useEffect(() => {
+    if (sandboxError && !loading && messages.length > 0) setAutoFixOffered(true);
+    if (!sandboxError) setAutoFixOffered(false);
+  }, [sandboxError, loading, messages.length]);
+
+  async function boot() {
+    const list = await loadConversations();
+    if (list.length > 0) {
+      await openConversation(list[0].id);
+    } else {
+      setShowTemplates(true); // 全新用户：先选模板
+    }
+  }
+
+  async function loadConversations() {
+    try {
+      const r = await fetch("/api/conversations?kind=code");
+      const d = await r.json();
+      const list = d.conversations || [];
+      setConversations(list);
+      return list;
+    } catch { return []; }
+  }
+
+  async function openConversation(id) {
+    setActiveId(id);
+    setMessages([]);
+    try {
+      const r = await fetch(`/api/conversations?id=${id}`);
+      const d = await r.json();
+      const conv = d.conversation;
+      if (!conv) return;
+      setMessages(conv.messages || []);
+      const m = conv.meta?.mode || "static";
+      const f = conv.meta?.files || (m === "react" ? STARTER_REACT : STARTER_STATIC);
+      setMode(m);
+      setInitialFiles(f);
+      currentFilesRef.current = f;
+      setShowTemplates(false);
+    } catch {}
+  }
+
+  async function startFromTemplate(tpl) {
+    const m = tpl.mode || "static";
     const starter = m === "react" ? STARTER_REACT : STARTER_STATIC;
+    const r = await fetch("/api/conversations", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "code", title: tpl.id === "blank" ? "新项目" : tpl.title, meta: { mode: m, files: starter } }),
+    });
+    const d = await r.json();
+    const id = d.conversation?.id;
+    if (!id) return;
+    setActiveId(id);
+    setMode(m);
     setInitialFiles(starter);
     currentFilesRef.current = starter;
-    setOpened(true);
-    runStream([{ role: "user", content: stageParam ? `开始第${stageParam}课（${m === "react" ? "React模式" : "网页模式"}）` : `开始（我选择了${m === "react" ? "React 应用" : "纯网页"}模式）` }], []);
+    setMessages([]);
+    setShowTemplates(false);
+    await loadConversations();
+    const opening = tpl.prompt
+      ? tpl.prompt
+      : `开始（我选择了${m === "react" ? "React 应用" : "纯网页"}模式）`;
+    await runStream([{ role: "user", content: opening }], [{ role: "user", content: opening }], id, m);
+  }
+
+  function saveConv(msgs, convId, curMode) {
+    const id = convId || activeId;
+    if (!id) return;
+    fetch("/api/conversations", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, messages: msgs, meta: { mode: curMode || mode, files: currentFilesRef.current } }),
+    }).then(() => loadConversations()).catch(() => {});
+  }
+
+  async function renameConv(id, title) {
+    await fetch("/api/conversations", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, title }),
+    });
+    loadConversations();
+  }
+
+  async function deleteConv(id) {
+    if (!confirm("删除这个项目对话？")) return;
+    await fetch(`/api/conversations?id=${id}`, { method: "DELETE" });
+    const list = await loadConversations();
+    if (id === activeId) {
+      if (list.length > 0) openConversation(list[0].id);
+      else { setShowTemplates(true); setActiveId(null); setMessages([]); }
+    }
   }
 
   function stopStream() {
@@ -140,12 +231,11 @@ export default function Studio() {
     return out;
   }
 
-  // Sandpack回传当前代码时，只更新ref，不触发重渲染
   function handleFilesChange(f) {
     currentFilesRef.current = f;
   }
 
-  async function runStream(apiMessages, displayMessages) {
+  async function runStream(apiMessages, displayMessages, convId, curMode) {
     setLoading(true);
     setStreamingText("");
     let fullText = "";
@@ -160,16 +250,15 @@ export default function Studio() {
         if (Object.keys(newFiles).length > 0) {
           setFilesToInject(newFiles);
           setInjectVersion(v => v + 1);
-          // 同步更新ref快照
           const merged = { ...currentFilesRef.current };
-          for (const [path, c] of Object.entries(newFiles)) {
-            const key = path.startsWith("/") ? path : "/" + path;
-            merged[key] = c;
+          for (const [p, c] of Object.entries(newFiles)) {
+            merged[p.startsWith("/") ? p : "/" + p] = c;
           }
           currentFilesRef.current = merged;
           setSandboxError(null);
           if (typeof window !== "undefined" && window.innerWidth < 900) setMobileTab("code");
         }
+        saveConv(next, convId, curMode);
         if (next.filter(m => m.role === "assistant").length === 1) {
           fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_ai_course" }) }).catch(() => {});
         }
@@ -179,7 +268,7 @@ export default function Studio() {
         setStreamingText("");
         setLoading(false);
       },
-      { sandboxFiles: filesForApi(), sandboxError, stage: stageParam, mode },
+      { sandboxFiles: filesForApi(), sandboxError, mode: curMode || mode },
       abortRef
     );
   }
@@ -202,6 +291,16 @@ export default function Studio() {
     await runStream(trimmed, trimmed);
   }
 
+  // 一键让代码星修复报错
+  async function autoFix() {
+    if (loading || !sandboxError) return;
+    setAutoFixOffered(false);
+    const msg = `我的代码报错了：${String(sandboxError).slice(0, 300)}\n\n帮我看看是哪里的问题，直接给我修好的完整代码。`;
+    const next = [...messages, { role: "user", content: msg }];
+    setMessages(next);
+    await runStream(next, next);
+  }
+
   function switchTheme() {
     const t = toggleTheme();
     setDark(t === "dark");
@@ -209,30 +308,39 @@ export default function Studio() {
 
   if (status !== "authenticated") return null;
 
-  // 模式选择界面
-  if (!mode) {
+  // 模板选择界面
+  if (showTemplates) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, background: "var(--bg)" }}>
-        <button onClick={() => router.push("/ai-course")} style={{ position: "fixed", top: 16, left: 16, background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500 }}>← 返回</button>
-        <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
-          <div style={{ fontSize: 44, marginBottom: 12 }}>🚀</div>
-          <h1 style={{ fontSize: 23, fontWeight: 700, marginBottom: 8 }}>选择你的创作模式</h1>
-          <p style={{ color: "var(--ink-soft)", fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>不确定？选纯网页就好，代码星会一步步带你。</p>
+      <div style={{ minHeight: "100vh", padding: "24px 20px 40px", background: "var(--bg)" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto" }}>
+          <button onClick={() => router.push("/ai-course")}
+            style={{ background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500, marginBottom: 24 }}>← 返回</button>
 
-          <div onClick={() => chooseMode("static")} className="card" style={{ padding: "22px 20px", marginBottom: 14, cursor: "pointer", textAlign: "left", display: "flex", gap: 14, alignItems: "center" }}>
-            <div style={{ fontSize: 34 }}>🌐</div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>纯网页 <span style={{ fontSize: 12, background: "var(--teal)", color: "#fff", padding: "2px 8px", borderRadius: 10, marginLeft: 6 }}>推荐新手</span></p>
-              <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0, lineHeight: 1.5 }}>HTML + CSS + JavaScript，做网页、小游戏、展示页。简单直接，马上能看到效果。</p>
-            </div>
+          {conversations.length > 0 && (
+            <button onClick={() => openConversation(conversations[0].id)}
+              style={{ background: "transparent", border: "none", color: "var(--ink-soft)", fontSize: 13, cursor: "pointer", marginLeft: 10 }}>
+              回到上个项目
+            </button>
+          )}
+
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 42, marginBottom: 10 }}>🚀</div>
+            <h1 style={{ fontSize: 23, fontWeight: 700, marginBottom: 6 }}>想做点什么？</h1>
+            <p style={{ color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.7 }}>选一个开始，代码星会一步步带你做出来。</p>
           </div>
 
-          <div onClick={() => chooseMode("react")} className="card" style={{ padding: "22px 20px", cursor: "pointer", textAlign: "left", display: "flex", gap: 14, alignItems: "center" }}>
-            <div style={{ fontSize: 34 }}>⚛️</div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>React 应用 <span style={{ fontSize: 12, background: "var(--purple)", color: "#fff", padding: "2px 8px", borderRadius: 10, marginLeft: 6 }}>进阶</span></p>
-              <p style={{ fontSize: 13, color: "var(--ink-soft)", margin: 0, lineHeight: 1.5 }}>用专业前端框架做真正的应用，能装 npm 包。适合已经会一点基础的你。</p>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+            {TEMPLATES.map(t => (
+              <div key={t.id} onClick={() => startFromTemplate(t)} className="card"
+                style={{ padding: "16px 14px", cursor: "pointer", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>{t.emoji}</div>
+                <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 3px" }}>{t.title}</p>
+                <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0, lineHeight: 1.4 }}>{t.desc}</p>
+                {t.mode === "react" && (
+                  <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, background: "var(--purple)", color: "#fff", padding: "2px 7px", borderRadius: 8 }}>React</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -267,39 +375,66 @@ export default function Studio() {
         <div ref={bottomRef} style={{ height: 12 }} />
       </div>
 
-      {sandboxError && (
-        <div style={{ padding: "8px 14px", background: "#FEF2F2", borderTop: "1px solid #FECACA", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "#DC2626", flex: 1 }}>沙盒有报错</span>
-          <button onClick={() => setInput("我的代码运行出错了，能帮我看看问题在哪吗？")} style={{ background: "#DC2626", color: "#fff", border: "none", fontSize: 11.5, padding: "5px 10px", borderRadius: 7, cursor: "pointer" }}>让代码星帮我看</button>
+      {/* 报错时主动提议修复 */}
+      {autoFixOffered && sandboxError && (
+        <div style={{ padding: "10px 14px", background: "#FEF2F2", borderTop: "1px solid #FECACA" }}>
+          <p style={{ fontSize: 12.5, color: "#DC2626", margin: "0 0 8px", lineHeight: 1.5 }}>
+            ⚠️ 我发现你的代码有个错误
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={autoFix} style={{ background: "#DC2626", color: "#fff", border: "none", fontSize: 12.5, padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontWeight: 500 }}>
+              🔧 帮我修好
+            </button>
+            <button onClick={() => setAutoFixOffered(false)} style={{ background: "transparent", border: "none", color: "#9CA3AF", fontSize: 12.5, cursor: "pointer" }}>
+              我自己看看
+            </button>
+          </div>
         </div>
       )}
 
       <ChatInput value={input} onChange={setInput} onSend={send} onStop={stopStream} loading={loading}
-        placeholder="问代码星，或告诉他你想做什么..." />
+        placeholder="问代码星，或告诉他你想做什么..." enableVoice />
     </div>
   );
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
-      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, background: "var(--card)", backdropFilter: "blur(20px)", flexShrink: 0, position: "relative", zIndex: 10 }}>
-        <button onClick={() => router.push("/ai-course")} style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>← 退出</button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星工作室 · {mode === "react" ? "React" : "网页"}</p>
-          <p style={{ fontSize: 11, color: "var(--ink-soft)", margin: 0 }}>和代码星一起，边写边跑</p>
-        </div>
-        <button onClick={switchTheme} title="切换主题" style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", padding: "4px 6px" }}>{dark ? "☀️" : "🌙"}</button>
-        <div className="studio-mobile-tabs" style={{ display: "none", gap: 4, background: "var(--purple-light)", borderRadius: 20, padding: 3 }}>
-          <button onClick={() => setMobileTab("chat")} style={{ border: "none", background: mobileTab === "chat" ? "var(--card-solid)" : "transparent", color: "var(--ink)", fontSize: 12.5, padding: "5px 12px", borderRadius: 16, cursor: "pointer" }}>对话</button>
-          <button onClick={() => setMobileTab("code")} style={{ border: "none", background: mobileTab === "code" ? "var(--card-solid)" : "transparent", color: "var(--ink)", fontSize: 12.5, padding: "5px 12px", borderRadius: 16, cursor: "pointer" }}>代码</button>
-        </div>
-      </div>
+    <div style={{ height: "100vh", display: "flex", background: "var(--bg)" }}>
+      <ConversationSidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={openConversation}
+        onNew={() => setShowTemplates(true)}
+        onRename={renameConv}
+        onDelete={deleteConv}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        <div className={`studio-chat ${mobileTab === "chat" ? "active" : ""}`} style={{ width: "40%", borderRight: "1px solid var(--line)", minWidth: 0 }}>
-          {chatPanel}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10, background: "var(--card)", backdropFilter: "blur(20px)", flexShrink: 0, position: "relative", zIndex: 10 }}>
+          <button onClick={() => setSidebarOpen(true)} className="conv-toggle"
+            style={{ background: "transparent", border: "none", color: "var(--ink-soft)", fontSize: 19, cursor: "pointer", padding: 0, display: "none" }}>☰</button>
+          <button onClick={() => router.push("/ai-course")}
+            style={{ background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>← 退出</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星 · {mode === "react" ? "React" : "网页"}</p>
+            <p style={{ fontSize: 11, color: "var(--ink-soft)", margin: 0 }}>边写边跑</p>
+          </div>
+          <button onClick={switchTheme} title="切换主题" style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", padding: "4px 6px" }}>{dark ? "☀️" : "🌙"}</button>
+          <div className="studio-mobile-tabs" style={{ display: "none", gap: 4, background: "var(--purple-light)", borderRadius: 20, padding: 3 }}>
+            <button onClick={() => setMobileTab("chat")} style={{ border: "none", background: mobileTab === "chat" ? "var(--card-solid)" : "transparent", color: "var(--ink)", fontSize: 12.5, padding: "5px 12px", borderRadius: 16, cursor: "pointer" }}>对话</button>
+            <button onClick={() => setMobileTab("code")} style={{ border: "none", background: mobileTab === "code" ? "var(--card-solid)" : "transparent", color: "var(--ink)", fontSize: 12.5, padding: "5px 12px", borderRadius: 16, cursor: "pointer" }}>代码</button>
+          </div>
         </div>
-        <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0 }}>
-          <SandpackStudio initialFiles={initialFiles} filesToInject={filesToInject} injectVersion={injectVersion} onFilesChange={handleFilesChange} onError={setSandboxError} mode={mode} />
+
+        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+          <div className={`studio-chat ${mobileTab === "chat" ? "active" : ""}`} style={{ width: "40%", borderRight: "1px solid var(--line)", minWidth: 0 }}>
+            {chatPanel}
+          </div>
+          <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0 }}>
+            <SandpackStudio initialFiles={initialFiles} filesToInject={filesToInject} injectVersion={injectVersion}
+              onFilesChange={handleFilesChange} onError={setSandboxError} mode={mode || "static"} />
+          </div>
         </div>
       </div>
 
@@ -308,13 +443,9 @@ export default function Studio() {
           .studio-chat, .studio-code { width: 100% !important; flex: none !important; display: none !important; }
           .studio-chat.active, .studio-code.active { display: block !important; height: 100%; }
           .studio-mobile-tabs { display: flex !important; }
+          .conv-toggle { display: block !important; }
         }
       `}</style>
-
-      <button onClick={() => router.push("/ai-course")} title="退出工作室"
-        style={{ position: "fixed", top: 12, right: 12, zIndex: 9999, width: 38, height: 38, borderRadius: "50%", background: "rgba(124,111,224,0.9)", color: "#fff", border: "2px solid #fff", cursor: "pointer", fontSize: 16, boxShadow: "0 4px 16px rgba(0,0,0,0.25)", display: "none", alignItems: "center", justifyContent: "center" }}
-        className="studio-escape">✕</button>
-      <style>{`@media (max-width: 900px) { .studio-escape { display: flex !important; } }`}</style>
     </div>
   );
 }

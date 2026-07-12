@@ -49,6 +49,7 @@ export default function StarOrb({ moodToday }) {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
+  const convIdRef = useRef(null);
 
   // 连续低落检测：优先于普通问候
   const greeting = careSignal
@@ -105,12 +106,25 @@ export default function StarOrb({ moodToday }) {
   }
 
   async function loadHistoryOrGreet() {
+    // 复用星伴最近的会话，保持和完整聊天页连贯
     try {
-      const r = await fetch("/api/companion-session");
-      const data = await r.json();
-      if (Array.isArray(data.messages) && data.messages.length > 0) {
-        setMessages(data.messages);
-        return;
+      const lr = await fetch("/api/conversations?kind=companion");
+      const ld = await lr.json();
+      const list = ld.conversations || [];
+      if (list.length > 0) {
+        convIdRef.current = list[0].id;
+        const cr = await fetch(`/api/conversations?id=${list[0].id}`);
+        const cd = await cr.json();
+        const msgs = cd.conversation?.messages || [];
+        if (msgs.length > 0) { setMessages(msgs); return; }
+      } else {
+        // 没有会话就建一个
+        const nr = await fetch("/api/conversations", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: "companion", title: "新对话" }),
+        });
+        const nd = await nr.json();
+        convIdRef.current = nd.conversation?.id || null;
       }
     } catch {}
     // 无历史，按情况打招呼
@@ -126,12 +140,11 @@ export default function StarOrb({ moodToday }) {
   }
 
   function saveHistory(msgs) {
-    const clean = msgs.filter(m => !(m.role === "user" && m.content.startsWith("（")));
-    if (clean.length === 0) return;
-    fetch("/api/companion-session", {
-      method: "POST",
+    if (!convIdRef.current) return;
+    fetch("/api/conversations", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: clean }),
+      body: JSON.stringify({ id: convIdRef.current, messages: msgs }),
     }).catch(() => {});
   }
 
