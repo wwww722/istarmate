@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import { AchievementPopup } from "../components/PageTransition";
+import { PageSkeleton } from "../components/EmptyState";
 
 export default function InvitePage() {
   const router = useRouter();

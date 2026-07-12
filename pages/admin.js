@@ -18,6 +18,9 @@ function timeAgo(dateStr) {
   return `${Math.floor(hours / 24)}天前`;
 }
 
+const thStyle = { padding: "6px 8px", textAlign: "left", borderBottom: "1px solid var(--line)", fontWeight: 500 };
+const tdStyle = { padding: "6px 8px", borderBottom: "1px solid var(--line)", color: "var(--ink)" };
+
 export default function Admin() {
   const router = useRouter();
   const { status } = useSession();
@@ -56,7 +59,7 @@ export default function Admin() {
     );
   }
 
-  const { stats, crisisLogs, signupTrend } = data || {};
+  const { stats, crisisLogs, signupTrend, safetyLogs, usage, retention } = data || {};
 
   return (
     <div className="wrap">
@@ -113,6 +116,89 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* 内容安全事件 */}
+      <div className="card" style={{ marginBottom: 16, padding: "18px 20px", border: safetyLogs?.length ? "1.5px solid var(--gold)" : "1px solid var(--line)" }}>
+        <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: "var(--gold)" }}>🛡️ 内容安全事件</p>
+        <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: "0 0 12px" }}>
+          越狱诱导尝试 / AI输出被拦截的记录
+        </p>
+        {!safetyLogs?.length ? (
+          <p style={{ fontSize: 14, color: "var(--teal-deep)", textAlign: "center", padding: "12px 0" }}>✓ 近期没有安全事件</p>
+        ) : safetyLogs.map(log => (
+          <div key={log.id} style={{ padding: "10px 0", borderTop: "1px solid var(--line)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--gold)" }}>
+                {log.event_type === "jailbreak" ? "⚠️ 越狱尝试" : "🚫 输出拦截"}
+              </span>
+              <span style={{ fontSize: 11.5, color: "var(--ink-muted)" }}>{timeAgo(log.created_at)}</span>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 2px" }}>{maskEmail(log.email)}</p>
+            <p style={{ fontSize: 12.5, color: "var(--ink)", margin: 0, background: "var(--bg)", padding: "6px 9px", borderRadius: 7, lineHeight: 1.5 }}>
+              {log.snippet}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* 功能使用热力 */}
+      {usage?.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, padding: "18px 20px" }}>
+          <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 4px" }}>📊 功能使用（近30天）</p>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 12px" }}>哪些功能真的被用起来了</p>
+          {(() => {
+            const max = Math.max(...usage.map(u => Number(u.count)), 1);
+            const LABELS = { chat: "星伴聊天", code: "代码星", checkin: "心情打卡", breathing: "呼吸练习", scenario: "小剧场" };
+            return usage.map((u, i) => (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                  <span style={{ color: "var(--ink)" }}>{LABELS[u.feature] || u.feature}</span>
+                  <span style={{ color: "var(--ink-soft)" }}>{u.count} 次 · {u.users} 人</span>
+                </div>
+                <div style={{ height: 6, background: "var(--purple-light)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${(Number(u.count) / max) * 100}%`, height: "100%", background: "var(--purple)", borderRadius: 3 }} />
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
+
+      {/* 留存曲线 */}
+      {retention?.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, padding: "18px 20px" }}>
+          <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 4px" }}>📈 留存（按注册日分组）</p>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 12px" }}>注册后有多少人回来打卡</p>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ color: "var(--ink-soft)" }}>
+                  <th style={thStyle}>注册日</th>
+                  <th style={thStyle}>人数</th>
+                  <th style={thStyle}>次日</th>
+                  <th style={thStyle}>7日</th>
+                  <th style={thStyle}>30日</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retention.map((r, i) => {
+                  const size = Number(r.cohort_size) || 1;
+                  const pct = (n) => Math.round((Number(n) / size) * 100);
+                  return (
+                    <tr key={i}>
+                      <td style={tdStyle}>{new Date(r.signup_date).toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}</td>
+                      <td style={tdStyle}>{r.cohort_size}</td>
+                      <td style={tdStyle}>{pct(r.day1)}%</td>
+                      <td style={tdStyle}>{pct(r.week1)}%</td>
+                      <td style={tdStyle}>{pct(r.month1)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 反馈统计 */}
       {stats?.feedback?.length > 0 && (

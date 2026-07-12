@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { getProfile } from "../../lib/db";
 import { streamSiliconFlow } from "../../lib/stream";
+import { detectJailbreak, SAFETY_SUFFIX } from "../../lib/contentSafety";
 
 export const config = { api: { responseLimit: false } };
 
@@ -44,9 +45,20 @@ export default async function handler(req, res) {
   };
   const stageGuide = stage && STAGE_GUIDES[stage] ? `\n\n【当前学习阶段】${STAGE_GUIDES[stage]}` : "";
 
-  const modeGuide = mode === "react"
-    ? `\n\n【当前是 React 模式】学生的沙盒是 React 环境，入口是 /App.js。你给的代码要用 React 语法（JSX、组件、hooks）。文件用 \`\`\`file:/App.js 这样的格式，可以拆分多个组件文件如 /components/Button.js。可以用 npm 包（在代码里 import 即可，Sandpack 会自动安装）。`
-    : `\n\n【当前是纯网页模式】学生的沙盒是静态网页环境，入口是 /index.html。你给的代码用 HTML/CSS/JavaScript。文件用 \`\`\`file:/index.html 、 \`\`\`file:/styles.css 、 \`\`\`file:/script.js 这样的格式。记得在 index.html 里用 <link> 引入 css、<script> 引入 js。`;
+  const MODE_GUIDES = {
+    react: `\n\n【当前是 React 模式】学生的沙盒是 React 环境，入口是 /App.js。你给的代码要用 React 语法（JSX、组件、hooks）。文件用 \`\`\`file:/App.js 这样的格式，可以拆分多个组件文件如 /components/Button.js。可以用 npm 包（在代码里 import 即可，Sandpack 会自动安装）。`,
+    python: `\n\n【当前是 Python 模式】学生的沙盒是浏览器内的真实 Python 环境（Pyodide）。只有一个文件 main.py。
+
+重要限制，务必遵守：
+- 不能用 input()，浏览器环境没有交互式输入。需要"输入"时，用变量赋值代替，或者让学生改代码里的值。
+- 不能用 open() 读写本地文件，也不能联网。
+- 可以用的库：math, random, datetime, json, re, itertools, collections 等标准库；numpy、pandas 也可以（Pyodide 内置）。
+- 用 print() 输出结果，学生会在下方看到。
+
+代码格式用 \`\`\`file:main.py。写小游戏时，用循环+random 模拟，不要等用户输入。`,
+    static: `\n\n【当前是纯网页模式】学生的沙盒是静态网页环境，入口是 /index.html。你给的代码用 HTML/CSS/JavaScript。文件用 \`\`\`file:/index.html 、 \`\`\`file:/styles.css 、 \`\`\`file:/script.js 这样的格式。记得在 index.html 里用 <link> 引入 css、<script> 引入 js。`,
+  };
+  const modeGuide = MODE_GUIDES[mode] || MODE_GUIDES.static;
 
   const systemPrompt = `你是"代码星"，IStarMate 的编程导师。你不是普通的答疑机器人，而是一位真正顶尖的全栈工程师，同时是一位极有耐心、擅长因材施教的老师。你正在和一个青少年学生结对编程，你们共享一个真实的代码沙盒——学生写的代码会实时运行，你能看到所有文件和报错。
 
@@ -80,7 +92,9 @@ export default async function handler(req, res) {
 【学生信息】
 昵称：${profile?.nickname || "同学"}${profile?.age ? "，" + profile.age + "岁" : ""}${stageGuide}${sandboxContext}
 
-${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}`;
+${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}${SAFETY_SUFFIX}
+
+【代码星特别注意】不要帮学生写：恶意代码（病毒、爬虫攻击、密码破解）、涉黄涉暴的网页内容、任何用于伤害他人的程序。遇到这类请求，温和拒绝并引导做正向的项目。`;
 
   // 只发最近16条对话：沙盒代码已经单独注入system prompt了，
   // 历史全塞会挤占上下文，让代码星变慢变浅

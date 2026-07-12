@@ -10,6 +10,15 @@ import ConversationSidebar from "../../components/ConversationSidebar";
 import { TEMPLATES } from "../../lib/projectTemplates";
 import { toggleTheme } from "../../lib/theme";
 
+const PythonSandbox = dynamic(() => import("../../components/PythonSandbox"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#8888aa", background: "#1e1e2e" }}>
+      正在准备 Python 环境...
+    </div>
+  ),
+});
+
 const SandpackStudio = dynamic(() => import("../../components/SandpackStudio"), {
   ssr: false,
   loading: () => (
@@ -39,6 +48,16 @@ const STARTER_STATIC = {
   background: #f5f3ff;
   color: #1a1633;
 }`,
+};
+
+const STARTER_PYTHON = {
+  "/main.py": `# 我的第一个 Python 程序
+print("你好，Python！")
+
+# 试试改这里的数字
+for i in range(3):
+    print(f"第 {i + 1} 次")
+`,
 };
 
 const STARTER_REACT = {
@@ -160,7 +179,7 @@ export default function Studio() {
       if (!conv) return;
       setMessages(conv.messages || []);
       const m = conv.meta?.mode || "static";
-      const f = conv.meta?.files || (m === "react" ? STARTER_REACT : STARTER_STATIC);
+      const f = conv.meta?.files || starterFor(m);
       setMode(m);
       setInitialFiles(f);
       currentFilesRef.current = f;
@@ -168,9 +187,15 @@ export default function Studio() {
     } catch {}
   }
 
+  function starterFor(m) {
+    if (m === "react") return STARTER_REACT;
+    if (m === "python") return STARTER_PYTHON;
+    return STARTER_STATIC;
+  }
+
   async function startFromTemplate(tpl) {
     const m = tpl.mode || "static";
-    const starter = m === "react" ? STARTER_REACT : STARTER_STATIC;
+    const starter = starterFor(m);
     const r = await fetch("/api/conversations", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind: "code", title: tpl.id === "blank" ? "新项目" : tpl.title, meta: { mode: m, files: starter } }),
@@ -216,6 +241,31 @@ export default function Studio() {
       if (list.length > 0) openConversation(list[0].id);
       else { setShowTemplates(true); setActiveId(null); setMessages([]); }
     }
+  }
+
+  async function pinConv(id, pinned) {
+    await fetch("/api/conversations", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, pinned }),
+    });
+    loadConversations();
+  }
+
+  async function archiveConv(id) {
+    await fetch("/api/conversations", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, archived: true }),
+    });
+    const list = await loadConversations();
+    if (id === activeId && list.length > 0) openConversation(list[0].id);
+  }
+
+  async function searchConv(q) {
+    try {
+      const r = await fetch(`/api/conversations?kind=code&q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      return d.results || [];
+    } catch { return []; }
   }
 
   function stopStream() {
@@ -339,6 +389,9 @@ export default function Studio() {
                 {t.mode === "react" && (
                   <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, background: "var(--purple)", color: "#fff", padding: "2px 7px", borderRadius: 8 }}>React</span>
                 )}
+                {t.mode === "python" && (
+                  <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, background: "var(--teal)", color: "#fff", padding: "2px 7px", borderRadius: 8 }}>Python</span>
+                )}
               </div>
             ))}
           </div>
@@ -406,6 +459,9 @@ export default function Studio() {
         onNew={() => setShowTemplates(true)}
         onRename={renameConv}
         onDelete={deleteConv}
+        onPin={pinConv}
+        onArchive={archiveConv}
+        onSearch={searchConv}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
@@ -417,7 +473,7 @@ export default function Studio() {
           <button onClick={() => router.push("/ai-course")}
             style={{ background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>← 退出</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星 · {mode === "react" ? "React" : "网页"}</p>
+            <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星 · {mode === "react" ? "React" : mode === "python" ? "Python" : "网页"}</p>
             <p style={{ fontSize: 11, color: "var(--ink-soft)", margin: 0 }}>边写边跑</p>
           </div>
           <button onClick={switchTheme} title="切换主题" style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", padding: "4px 6px" }}>{dark ? "☀️" : "🌙"}</button>
@@ -432,8 +488,16 @@ export default function Studio() {
             {chatPanel}
           </div>
           <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0 }}>
-            <SandpackStudio initialFiles={initialFiles} filesToInject={filesToInject} injectVersion={injectVersion}
-              onFilesChange={handleFilesChange} onError={setSandboxError} mode={mode || "static"} />
+            {mode === "python" ? (
+              <PythonSandbox
+                code={(filesToInject?.["main.py"] || filesToInject?.["/main.py"] || currentFilesRef.current?.["/main.py"] || "")}
+                onCodeChange={(v) => { currentFilesRef.current = { "/main.py": v }; }}
+                onError={setSandboxError}
+              />
+            ) : (
+              <SandpackStudio initialFiles={initialFiles} filesToInject={filesToInject} injectVersion={injectVersion}
+                onFilesChange={handleFilesChange} onError={setSandboxError} mode={mode || "static"} />
+            )}
           </div>
         </div>
       </div>

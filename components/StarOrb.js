@@ -51,19 +51,38 @@ export default function StarOrb({ moodToday }) {
   const abortRef = useRef(null);
   const convIdRef = useRef(null);
 
-  // 连续低落检测：优先于普通问候
-  const greeting = careSignal
-    ? (careSignal.level === "high"
-        ? ["我注意到你这几天都不太好 💙", `已经连续 ${careSignal.days} 天了，要不要和我聊聊？`]
-        : ["这两天心情好像都有点低 💙", "我一直在这儿，想说说吗？"])
-    : getProactiveGreeting(moodToday);
+  // 关怀信号按优先级决定问候语
+  const greeting = (() => {
+    if (!careSignal) return getProactiveGreeting(moodToday);
+    if (careSignal.type === "lowStreak") {
+      return ["我注意到你这几天都不太好 💙", `已经连续 ${careSignal.days} 天了，要不要和我聊聊？`];
+    }
+    if (careSignal.type === "declining") {
+      return ["最近感觉你状态在往下走 💙", "有什么事在压着你吗？和我说说"];
+    }
+    if (careSignal.type === "longAway") {
+      return [`好久不见，${careSignal.days} 天了 👋`, "这几天过得怎么样？我一直在这儿"];
+    }
+    if (careSignal.type === "improving") {
+      return ["感觉你最近状态好了不少 ✨", "发生什么好事了吗？想听你说说"];
+    }
+    return getProactiveGreeting(moodToday);
+  })();
 
-  // 拉取连续低落信号
+  // 拉取综合关怀信号（按优先级取第一个）
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/care-check")
+    fetch("/api/care-signal")
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (!cancelled && data?.care) setCareSignal(data.care); })
+      .then(data => {
+        if (cancelled || !data?.signals) return;
+        const s = data.signals;
+        // 优先级：连续低落 > 情绪下滑 > 好久不见 > 状态变好
+        if (s.lowStreak) setCareSignal({ type: "lowStreak", days: s.lowStreak.days });
+        else if (s.declining) setCareSignal({ type: "declining", ...s.declining });
+        else if (s.longAway) setCareSignal({ type: "longAway", days: s.longAway.days });
+        else if (s.improving) setCareSignal({ type: "improving", ...s.improving });
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -129,8 +148,14 @@ export default function StarOrb({ moodToday }) {
     } catch {}
     // 无历史，按情况打招呼
     let openingContent;
-    if (careSignal) {
+    if (careSignal?.type === "lowStreak") {
       openingContent = `（这个用户已经连续${careSignal.days}天打卡心情都是低落或很差。请以星伴身份，用真诚温柔、不夸张的语气，让TA感到被看见——不要生硬地说"我发现你连续几天"，而是自然地表达关心，轻轻邀请TA说说最近发生了什么。简短、有温度。）`;
+    } else if (careSignal?.type === "declining") {
+      openingContent = `（这个用户最近几天的心情在明显下滑。请以星伴身份，敏锐但不惊扰地表达你的察觉，温柔地问问最近是不是有什么在困扰TA。简短、真诚。）`;
+    } else if (careSignal?.type === "longAway") {
+      openingContent = `（这个用户已经${careSignal.days}天没来了。请以星伴身份，用"好久不见"的温暖语气打招呼，不要有任何责备或催促的意味，只是单纯地表达你记得TA、很高兴TA回来了，然后轻轻问问这几天过得怎么样。）`;
+    } else if (careSignal?.type === "improving") {
+      openingContent = `（这个用户最近的心情在明显变好。请以星伴身份，真诚地为TA高兴，好奇地问问是发生了什么好事，语气轻快一点。）`;
     } else if (moodToday === "down" || moodToday === "bad") {
       openingContent = `（用户今天打卡选了心情"${moodToday === "down" ? "低落" : "很差"}"，请以星伴身份，不要生硬提到"打卡"，而是自然地感知到TA的状态，温柔地引出话题，问问发生了什么）`;
     } else {

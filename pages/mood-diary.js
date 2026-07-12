@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
-import { EmptyState } from "../components/EmptyState";
+import { EmptyState, PageSkeleton } from "../components/EmptyState";
 
 const MOOD_EMOJI = { great: "😄", ok: "🙂", meh: "😐", down: "😔", bad: "😣" };
 const MOOD_LABEL = { great: "很好", ok: "还行", meh: "一般", down: "低落", bad: "很差" };
@@ -32,7 +32,7 @@ export default function MoodDiary() {
     return `${d.getMonth() + 1}月${d.getDate()}日`;
   }
 
-  if (status !== "authenticated" || loading) return null;
+  if (status !== "authenticated" || loading) return <div className="wrap"><PageSkeleton /></div>;
 
   return (
     <div className="wrap">

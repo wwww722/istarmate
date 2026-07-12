@@ -270,3 +270,27 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 CREATE INDEX IF NOT EXISTS idx_conversations_user_kind
   ON conversations(user_id, kind, updated_at DESC);
+
+-- 会话置顶
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
+
+-- 内容安全事件日志（记录越狱尝试和输出拦截）
+CREATE TABLE IF NOT EXISTS safety_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,        -- 'jailbreak' | 'output_blocked'
+  snippet TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 功能使用埋点（管理后台的使用热力图）
+CREATE TABLE IF NOT EXISTS usage_events (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  feature TEXT NOT NULL,           -- 'chat' | 'code' | 'checkin' | 'breathing' 等
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_usage_feature_time ON usage_events(feature, created_at DESC);
+
+-- 最后活跃时间（用于"好久不见"关怀）
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP DEFAULT NOW();

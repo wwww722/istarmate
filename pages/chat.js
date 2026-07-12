@@ -155,6 +155,31 @@ export default function Chat() {
     }
   }
 
+  async function pinConv(id, pinned) {
+    await fetch("/api/conversations", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, pinned }),
+    });
+    loadConversations();
+  }
+
+  async function archiveConv(id) {
+    await fetch("/api/conversations", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, archived: true }),
+    });
+    const list = await loadConversations();
+    if (id === activeId && list.length > 0) openConversation(list[0].id);
+  }
+
+  async function searchConv(q) {
+    try {
+      const r = await fetch(`/api/conversations?kind=companion&q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      return d.results || [];
+    } catch { return []; }
+  }
+
   function stopStream() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     setLoading(false);
@@ -275,6 +300,9 @@ export default function Chat() {
         onNew={() => newConversation(null)}
         onRename={renameConv}
         onDelete={deleteConv}
+        onPin={pinConv}
+        onArchive={archiveConv}
+        onSearch={searchConv}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

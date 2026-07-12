@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [diaryNote, setDiaryNote] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [moodTrend, setMoodTrend] = useState(null);
   const [showMoodPopup, setShowMoodPopup] = useState(false);
   const [selectedMoodLabel, setSelectedMoodLabel] = useState("");
   const [loading, setLoading] = useState(true);
@@ -77,6 +78,11 @@ export default function Dashboard() {
     setLoading(false);
     // 轻量检查是否管理员（失败静默）
     fetch("/api/admin").then(r => { if (r.ok) setIsAdminUser(true); }).catch(() => {});
+    // 情绪趋势
+    fetch("/api/care-signal").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.signals?.declining) setMoodTrend({ type: "declining", ...d.signals.declining });
+      else if (d?.signals?.improving) setMoodTrend({ type: "improving", ...d.signals.improving });
+    }).catch(() => {});
   }
 
   async function selectMood(m) {
@@ -245,6 +251,31 @@ export default function Dashboard() {
 
       {/* 心情折线图 */}
       {moodLogs.length > 0 && <MoodChart logs={moodLogs} />}
+
+      {/* 情绪趋势预警 */}
+      {moodTrend && (
+        <div className="card" style={{
+          marginTop: 14, padding: "16px 18px",
+          border: `1.5px solid ${moodTrend.type === "declining" ? "rgba(201,74,74,0.3)" : "rgba(63,167,150,0.3)"}`,
+          background: moodTrend.type === "declining" ? "rgba(201,74,74,0.05)" : "rgba(63,167,150,0.05)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <span style={{ fontSize: 22 }}>{moodTrend.type === "declining" ? "📉" : "📈"}</span>
+            <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0, color: moodTrend.type === "declining" ? "var(--coral-deep)" : "var(--teal-deep)" }}>
+              {moodTrend.type === "declining" ? "最近状态在往下走" : "最近状态在变好"}
+            </p>
+          </div>
+          <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: "0 0 12px", lineHeight: 1.6 }}>
+            {moodTrend.type === "declining"
+              ? "对比前几天，你这几天的心情明显低了一些。不用强撑，如果有什么压着你，可以和星伴说说。"
+              : "对比前几天，你这几天的心情好了不少。是发生什么好事了吗？"}
+          </p>
+          <button className="btn" style={{ padding: "9px", fontSize: 13.5 }}
+            onClick={() => router.push("/chat")}>
+            {moodTrend.type === "declining" ? "和星伴聊聊 →" : "和星伴分享 →"}
+          </button>
+        </div>
+      )}
 
       {/* 今日小剧场 */}
       <div className="gradient-card" onClick={() => router.push("/scenario")} style={{ marginBottom: 14 }}>
