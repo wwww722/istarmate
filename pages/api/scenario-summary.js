@@ -1,3 +1,4 @@
+import { MODELS } from "../../lib/models";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { saveChatSummary } from "../../lib/db";
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
         Authorization: `Bearer ${process.env.SILICONFLOW_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "Pro/zai-org/GLM-5.1",
+        model: MODELS.utility,
         messages: [{
           role: "user",
           content: `用户刚完成了今天的小剧场"${scenarioTitle || "心情小剧场"}"，他们说了这些话：\n${userMsgs}\n\n请用1-2句温暖的话总结TA今天表达的情绪或小小的收获，像一个懂你的朋友在说话，不要以"你"开头，要有温度。`,

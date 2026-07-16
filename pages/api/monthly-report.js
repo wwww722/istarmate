@@ -1,3 +1,4 @@
+import { MODELS } from "../../lib/models";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { getMoodLogs, getRecentChatSummaries, getProfile, getMonthlyReports, saveMonthlyReport } from "../../lib/db";
@@ -73,7 +74,7 @@ ${summaries.slice(0,5).map(s=>"- "+s.summary).join("\n")||"（本月没有对话
       const r = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SILICONFLOW_API_KEY}` },
-        body: JSON.stringify({ model: "Pro/zai-org/GLM-5.1", messages: [{ role: "user", content: prompt }], max_tokens: 300, temperature: 0.7 }),
+        body: JSON.stringify({ model: MODELS.utility, messages: [{ role: "user", content: prompt }], max_tokens: 300, temperature: 0.7 }),
       });
       const data = await r.json();
       const narrative = data?.choices?.[0]?.message?.content?.trim() || "";

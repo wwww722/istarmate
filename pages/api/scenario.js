@@ -1,3 +1,4 @@
+import { MODELS } from "../../lib/models";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import {
@@ -39,7 +40,7 @@ ${storyContext}
         Authorization: `Bearer ${process.env.SILICONFLOW_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "Pro/zai-org/GLM-5.1",
+        model: MODELS.utility,
         messages: [{ role: "user", content: prompt }],
         max_tokens: 300,
         temperature: 0.9,

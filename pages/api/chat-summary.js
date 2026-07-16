@@ -1,5 +1,6 @@
 // pages/api/chat-summary.js
 // 对话结束后，AI同时生成：(1)情绪摘要 (2)结构化记忆（记住具体的人和事）
+import { MODELS } from "../../lib/models";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { saveChatSummary, getRecentChatSummaries, upsertMemory } from "../../lib/db";
@@ -57,7 +58,7 @@ ${convo}
           Authorization: `Bearer ${process.env.SILICONFLOW_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "Pro/zai-org/GLM-5.1",
+          model: MODELS.utility,
           messages: [{ role: "user", content: prompt }],
           max_tokens: 500,
           temperature: 0.3,

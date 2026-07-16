@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { getProfile } from "../../lib/db";
 import { streamSiliconFlow } from "../../lib/stream";
+import { MODELS } from "../../lib/models";
 import { detectJailbreak, SAFETY_SUFFIX } from "../../lib/contentSafety";
 
 export const config = { api: { responseLimit: false } };
@@ -104,5 +105,5 @@ ${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是
 
   // 只发最近16条对话：沙盒代码已经单独注入system prompt了，
   // 历史全塞会挤占上下文，让代码星变慢变浅
-  await streamSiliconFlow(res, systemPrompt, messages.slice(-16), 3000);
+  await streamSiliconFlow(res, systemPrompt, messages.slice(-16), 3000, MODELS.code);
 }
