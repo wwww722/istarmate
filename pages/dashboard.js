@@ -196,6 +196,7 @@ export default function Dashboard() {
                   { label: "🎟️ 邀请朋友", action: () => router.push("/invite") },
                   { label: "📔 情绪日记", action: () => router.push("/mood-diary") },
                   { label: "🧠 星伴记得的事", action: () => router.push("/memories") },
+                  { label: "🌱 我的这一个月", action: () => router.push("/growth") },
                   { label: "🌬️ 呼吸练习", action: () => { setShowSettings(false); setShowBreathing(true); } },
                   { label: "⚙️ 账号设置", action: () => router.push("/account") },
                   ...(isAdminUser ? [{ label: "🛠️ 管理后台", action: () => router.push("/admin") }] : []),

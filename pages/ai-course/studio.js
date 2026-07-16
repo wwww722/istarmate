@@ -9,6 +9,7 @@ import ChatInput from "../../components/ChatInput";
 import ConversationSidebar from "../../components/ConversationSidebar";
 import { TEMPLATES } from "../../lib/projectTemplates";
 import { toggleTheme } from "../../lib/theme";
+import Celebration from "../../components/Celebration";
 
 const PythonSandbox = dynamic(() => import("../../components/PythonSandbox"), {
   ssr: false,
@@ -129,6 +130,8 @@ export default function Studio() {
   const [mobileTab, setMobileTab] = useState("chat");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [celebration, setCelebration] = useState(null); // {title, message, emoji} | null
+  const [hasCelebrated, setHasCelebrated] = useState(false); // 本次会话是否已庆祝首个作品
   const currentFilesRef = useRef(STARTER_STATIC);
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
@@ -307,6 +310,17 @@ export default function Studio() {
           currentFilesRef.current = merged;
           setSandboxError(null);
           if (typeof window !== "undefined" && window.innerWidth < 900) setMobileTab("code");
+          // 第一次做出作品，放大这个兴奋的瞬间
+          if (!hasCelebrated) {
+            setHasCelebrated(true);
+            setTimeout(() => {
+              setCelebration({
+                emoji: "🎉",
+                title: "你的第一个作品诞生了！",
+                message: "看右边——这是你亲手做出来的，它真的能跑起来。这只是开始，你还能做出更酷的东西。",
+              });
+            }, 800);
+          }
         }
         saveConv(next, convId, curMode);
         if (next.filter(m => m.role === "assistant").length === 1) {
@@ -551,6 +565,16 @@ export default function Studio() {
           .conv-toggle { display: block !important; }
         }
       `}</style>
+
+      {celebration && (
+        <Celebration
+          emoji={celebration.emoji}
+          title={celebration.title}
+          message={celebration.message}
+          onClose={() => setCelebration(null)}
+          onShare={() => { setCelebration(null); router.push("/ai-course/projects"); }}
+        />
+      )}
     </div>
   );
 }
