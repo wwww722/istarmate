@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: "请先登录" });
   if (!process.env.SILICONFLOW_API_KEY) return res.status(500).json({ error: "未配置 API Key" });
 
-  const { messages, sandboxFiles, sandboxError, stage, mode } = req.body || {};
+  const { messages, sandboxFiles, sandboxError, stage, mode, explainLine } = req.body || {};
   if (!Array.isArray(messages)) return res.status(400).json({ error: "缺少 messages" });
 
   const userId = Number(session.userId);
@@ -33,8 +33,11 @@ export default async function handler(req, res) {
       }
     }
   }
+  if (explainLine) {
+    sandboxContext += `\n\n【学生点击了某行代码，想让你讲解】\n代码：${String(explainLine).slice(0, 300)}\n请用最通俗易懂的话解释这行/这段代码在做什么、为什么这么写。简短、聚焦、像给新手朋友解释。`;
+  }
   if (sandboxError) {
-    sandboxContext += `\n\n【沙盒当前有报错】\n${String(sandboxError).slice(0, 500)}\n请主动帮学生分析这个错误，指出在哪个文件、哪一行、为什么错、怎么改。`;
+    sandboxContext += `\n\n【沙盒当前有报错】\n${String(sandboxError).slice(0, 500)}\n\n处理报错的方式（除非学生明确说"直接帮我修"）：先别急着给答案。用一两句话引导学生自己看——"注意看第几行，你觉得这里可能是什么问题？"或者给个方向性的提示。如果学生答不上来或明确要答案，再给完整的修复代码。目的是让TA学会自己debug，而不是依赖你。`;
   }
 
   const STAGE_GUIDES = {
@@ -71,7 +74,7 @@ export default async function handler(req, res) {
 1. 拆解任务：把大目标拆成一小步一小步，每次只推进一步
 2. 给完整可运行的代码：绝不用"其余不变""省略"这种话，要给就给完整的
 3. 讲清楚"为什么"：给代码后用1-2句解释这段做了什么、为什么这样写
-4. 主动看沙盒：如果学生的代码有报错，你要主动指出来，不用等他问
+4. 引导式debug：发现报错时，先引导学生自己观察和思考（"你注意到第几行了吗""你觉得这里想做什么，实际发生了什么"），给方向而不是直接给答案；只有当学生卡住或明确要答案时才给完整修复。目的是教会TA自己找bug的能力。
 5. 引导思考：适当的时候先问"你觉得应该怎么做"，而不是直接给答案
 6. 鼓励为主：青少年需要正反馈，做对了要肯定，做错了温和引导
 
@@ -82,6 +85,9 @@ export default async function handler(req, res) {
 \`\`\`
 - 这样系统会自动把代码放进学生的沙盒里，他立刻看到运行效果
 - 普通讲解、不需要放进沙盒的代码片段，用普通的 \`\`\`html 或 \`\`\`js 代码块${modeGuide}
+
+【逐行讲解】
+如果学生问"这行/这段代码是什么意思""解释一下这里"，或者系统给你传来了[讲解请求：某行代码]，就用最通俗的话讲清楚那行代码在做什么、为什么这么写，像给完全不懂的朋友解释一样，可以用生活比喻。不要一次讲太多，聚焦TA问的那部分。
 
 【说话风格】
 - 像真人导师，有温度但专业，不啰嗦

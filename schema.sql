@@ -294,3 +294,17 @@ CREATE INDEX IF NOT EXISTS idx_usage_feature_time ON usage_events(feature, creat
 
 -- 最后活跃时间（用于"好久不见"关怀）
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMP DEFAULT NOW();
+
+-- ===== 结构化记忆（记住用户的具体人和事）=====
+CREATE TABLE IF NOT EXISTS user_memories (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,          -- 'person'(人) | 'event'(事) | 'preference'(偏好) | 'concern'(困扰) | 'goal'(目标)
+  key TEXT NOT NULL,               -- 简短标识，如"数学老师""期中考试"
+  detail TEXT NOT NULL,            -- 具体内容
+  importance INTEGER DEFAULT 1,    -- 1-3，越高越重要
+  last_mentioned TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, category, key)
+);
+CREATE INDEX IF NOT EXISTS idx_memories_user ON user_memories(user_id, importance DESC, last_mentioned DESC);

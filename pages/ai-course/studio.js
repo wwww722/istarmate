@@ -351,6 +351,41 @@ export default function Studio() {
     await runStream(next, next);
   }
 
+  // 讲解选中的代码：读取用户在编辑器里选中的文本
+  async function explainSelection() {
+    if (loading) return;
+    const sel = typeof window !== "undefined" ? String(window.getSelection?.() || "").trim() : "";
+    if (!sel) {
+      alert("先在右边代码里选中你想问的那几行，再点这里～");
+      return;
+    }
+    const userMsg = { role: "user", content: `解释一下这段代码：\n${sel}` };
+    const next = [...messages, userMsg];
+    setMessages(next);
+    if (typeof window !== "undefined" && window.innerWidth < 900) setMobileTab("chat");
+    // 带上explainLine给API
+    setLoading(true);
+    setStreamingText("");
+    let fullText = "";
+    await streamFetch("/api/code-mentor", next,
+      (token) => { fullText += token; setStreamingText(fullText); },
+      () => {
+        const done = [...next, { role: "assistant", content: fullText }];
+        setMessages(done);
+        setStreamingText("");
+        setLoading(false);
+        saveConv(done, activeId, mode);
+      },
+      (err) => {
+        setMessages([...next, { role: "assistant", content: `（${err}）` }]);
+        setStreamingText("");
+        setLoading(false);
+      },
+      { sandboxFiles: filesForApi(), mode, explainLine: sel },
+      abortRef
+    );
+  }
+
   function switchTheme() {
     const t = toggleTheme();
     setDark(t === "dark");
@@ -487,7 +522,13 @@ export default function Studio() {
           <div className={`studio-chat ${mobileTab === "chat" ? "active" : ""}`} style={{ width: "40%", borderRight: "1px solid var(--line)", minWidth: 0 }}>
             {chatPanel}
           </div>
-          <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0 }}>
+          <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0, position: "relative" }}>
+            {mode !== "python" && (
+              <button onClick={explainSelection} disabled={loading} title="选中代码后点这里，代码星帮你讲解"
+                style={{ position: "absolute", top: 8, right: 12, zIndex: 20, background: "rgba(124,111,224,0.92)", color: "#fff", border: "none", borderRadius: 18, padding: "6px 12px", fontSize: 12, cursor: loading ? "default" : "pointer", fontWeight: 500, boxShadow: "0 2px 10px rgba(0,0,0,0.2)", opacity: loading ? 0.5 : 1 }}>
+                💡 讲解选中代码
+              </button>
+            )}
             {mode === "python" ? (
               <PythonSandbox
                 code={(filesToInject?.["main.py"] || filesToInject?.["/main.py"] || currentFilesRef.current?.["/main.py"] || "")}
