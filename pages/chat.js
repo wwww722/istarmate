@@ -279,6 +279,8 @@ export default function Chat() {
         const userTurns = next.filter(m => m.role === "user" && !isHidden(m)).length;
         if (userTurns >= 3 && userTurns % 2 === 1) {
           fetch("/api/chat-summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next }) }).catch(() => {});
+          // 后台质量评估（抽样，不阻塞）
+          fetch("/api/quality-eval", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next, roleKind: "companion" }) }).catch(() => {});
         }
         if (next.filter(m => m.role === "assistant").length === 1) {
           fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_chat" }) }).catch(() => {});

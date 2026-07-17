@@ -308,3 +308,16 @@ CREATE TABLE IF NOT EXISTS user_memories (
   UNIQUE(user_id, category, key)
 );
 CREATE INDEX IF NOT EXISTS idx_memories_user ON user_memories(user_id, importance DESC, last_mentioned DESC);
+
+-- ===== 对话质量评估（后台运营用，不阻塞用户）=====
+CREATE TABLE IF NOT EXISTS quality_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  role_kind TEXT NOT NULL,          -- 'companion' | 'code'
+  depth_score INTEGER,              -- 1-5 深度/共情
+  helpfulness_score INTEGER,        -- 1-5 有用程度
+  safety_ok BOOLEAN DEFAULT TRUE,   -- 是否安全无问题
+  issue TEXT,                       -- 发现的问题（如有）
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_quality_time ON quality_logs(role_kind, created_at DESC);

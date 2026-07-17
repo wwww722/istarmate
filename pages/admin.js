@@ -59,7 +59,7 @@ export default function Admin() {
     );
   }
 
-  const { stats, crisisLogs, signupTrend, safetyLogs, usage, retention } = data || {};
+  const { stats, crisisLogs, signupTrend, safetyLogs, usage, retention, quality } = data || {};
 
   return (
     <div className="wrap">
@@ -140,6 +140,34 @@ export default function Admin() {
           </div>
         ))}
       </div>
+
+      {/* 对话质量评估 */}
+      {quality?.stats?.length > 0 && (
+        <div className="card" style={{ marginBottom: 16, padding: "18px 20px" }}>
+          <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 4px" }}>🎯 对话质量（近30天抽样）</p>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 14px" }}>后台自动抽样评估，用户无感</p>
+          {quality.stats.map((q, i) => (
+            <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: i < quality.stats.length - 1 ? "1px solid var(--line)" : "none" }}>
+              <p style={{ fontSize: 13.5, fontWeight: 600, margin: "0 0 6px" }}>{q.role_kind === "companion" ? "星伴" : "代码星"} <span style={{ fontSize: 11.5, color: "var(--ink-muted)", fontWeight: 400 }}>（{q.n}次抽样）</span></p>
+              <div style={{ display: "flex", gap: 18, fontSize: 12.5, color: "var(--ink-soft)" }}>
+                <span>深度/共情 <b style={{ color: q.avg_depth >= 3.5 ? "var(--teal-deep)" : "var(--gold)" }}>{q.avg_depth || "-"}</b>/5</span>
+                <span>有用度 <b style={{ color: q.avg_help >= 3.5 ? "var(--teal-deep)" : "var(--gold)" }}>{q.avg_help || "-"}</b>/5</span>
+                {Number(q.safety_issues) > 0 && <span style={{ color: "var(--coral-deep)" }}>⚠️ 安全问题 {q.safety_issues} 次</span>}
+              </div>
+            </div>
+          ))}
+          {quality.recentIssues?.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 6px" }}>发现的问题：</p>
+              {quality.recentIssues.slice(0, 5).map((iss, i) => (
+                <p key={i} style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 4px", lineHeight: 1.5 }}>
+                  · [{iss.role_kind === "companion" ? "星伴" : "代码星"}] {iss.issue}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 功能使用热力 */}
       {usage?.length > 0 && (

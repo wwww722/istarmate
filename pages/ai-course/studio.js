@@ -338,6 +338,7 @@ export default function Studio() {
           }
         }
         saveConv(next, convId, curMode);
+        fetch("/api/quality-eval", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next, roleKind: "code" }) }).catch(() => {});
         if (next.filter(m => m.role === "assistant").length === 1) {
           fetch("/api/achievement-trigger", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trigger: "first_ai_course" }) }).catch(() => {});
         }

@@ -43,11 +43,12 @@ export default function Growth() {
 
   const growth = data?.growth || {};
   const moments = data?.moments || {};
+  const milestones = data?.milestones || [];
   const checkins = growth.checkins || [];
   const memories = moments.memories || [];
   const summaries = moments.summaries || [];
 
-  const hasData = checkins.length > 0 || memories.length > 0 || summaries.length > 0;
+  const hasData = checkins.length > 0 || memories.length > 0 || summaries.length > 0 || milestones.length > 0;
 
   const dirText = { up: "在慢慢变好 🌱", down: "有点起伏，我一直在", stable: "挺稳的 💛" };
   const dirColor = { up: "#3FA796", down: "#E89B6C", stable: "#7C6FE0" };
@@ -94,6 +95,33 @@ export default function Growth() {
                 <span>这个月打卡 <b style={{ color: "var(--ink)" }}>{growth.days}</b> 天</span>
                 {growth.avgScore && <span>平均心情 <b style={{ color: "var(--ink)" }}>{growth.avgScore}</b>/5</span>}
                 {growth.counts?.great > 0 && <span>😄 开心 <b style={{ color: "var(--ink)" }}>{growth.counts.great}</b> 天</span>}
+              </div>
+            </div>
+          )}
+
+          {/* 成长里程碑时间轴 */}
+          {milestones.length > 0 && (
+            <div className="card" style={{ padding: "18px 20px", marginBottom: 16 }}>
+              <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>你的成长足迹</p>
+              <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: "0 0 16px" }}>每一个"第一次"都值得记住</p>
+              <div style={{ position: "relative" }}>
+                {milestones.map((m, i) => (
+                  <div key={i} style={{ display: "flex", gap: 12, marginBottom: i === milestones.length - 1 ? 0 : 18, position: "relative" }}>
+                    {/* 竖线 */}
+                    {i !== milestones.length - 1 && (
+                      <div style={{ position: "absolute", left: 17, top: 36, bottom: -18, width: 2, background: "var(--purple-light)" }} />
+                    )}
+                    {/* 圆点图标 */}
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--purple-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, zIndex: 1 }}>
+                      {m.emoji}
+                    </div>
+                    <div style={{ flex: 1, paddingTop: 2 }}>
+                      <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: "0 0 2px" }}>{fmtDate(m.date)}</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 2px" }}>{m.title}</p>
+                      <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0, lineHeight: 1.5 }}>{m.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
