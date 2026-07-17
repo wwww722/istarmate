@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
-import { streamFetch } from "../../lib/useStreamChat";
+import { streamFetchSmooth as streamFetch } from "../../lib/useStreamChat";
 import { parseFileBlocks, stripFileBlocks } from "../../lib/parseCodeBlocks";
 import { RichText } from "../../lib/richText";
 import ChatInput from "../../components/ChatInput";
@@ -147,6 +147,17 @@ export default function Studio() {
     bottomRef.current?.scrollIntoView({ behavior: streamingText ? "auto" : "smooth" });
   }, [messages, streamingText]);
 
+  useEffect(() => {
+    if (!activeId) return;
+    const t = setTimeout(() => {
+      try {
+        if (input.trim()) localStorage.setItem(`istarmate_draft_code_${activeId}`, input);
+        else localStorage.removeItem(`istarmate_draft_code_${activeId}`);
+      } catch {}
+    }, 400);
+    return () => clearTimeout(t);
+  }, [input, activeId]);
+
   // 沙盒报错时，主动提议修复（每次新错误只提议一次）
   useEffect(() => {
     if (sandboxError && !loading && messages.length > 0) setAutoFixOffered(true);
@@ -175,6 +186,10 @@ export default function Studio() {
   async function openConversation(id) {
     setActiveId(id);
     setMessages([]);
+    try {
+      const draft = localStorage.getItem(`istarmate_draft_code_${id}`);
+      setInput(draft || "");
+    } catch { setInput(""); }
     try {
       const r = await fetch(`/api/conversations?id=${id}`);
       const d = await r.json();
@@ -342,6 +357,7 @@ export default function Studio() {
     const next = [...messages, { role: "user", content: input.trim() }];
     setMessages(next);
     setInput("");
+    try { if (activeId) localStorage.removeItem(`istarmate_draft_code_${activeId}`); } catch {}
     await runStream(next, next);
   }
 

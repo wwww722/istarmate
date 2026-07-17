@@ -4,6 +4,7 @@ import { authOptions } from "./auth/[...nextauth]";
 import { getProfile } from "../../lib/db";
 import { streamSiliconFlow } from "../../lib/stream";
 import { MODELS } from "../../lib/models";
+import { youthModeGuide, UNCERTAINTY_RULE } from "../../lib/promptHelpers";
 import { detectJailbreak, SAFETY_SUFFIX } from "../../lib/contentSafety";
 
 export const config = { api: { responseLimit: false } };
@@ -103,7 +104,7 @@ export default async function handler(req, res) {
 【学生信息】
 昵称：${profile?.nickname || "同学"}${profile?.age ? "，" + profile.age + "岁" : ""}${stageGuide}${sandboxContext}
 
-${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}${SAFETY_SUFFIX}
+${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}${youthModeGuide(profile?.age)}${UNCERTAINTY_RULE}${SAFETY_SUFFIX}
 
 【代码星特别注意】不要帮学生写：恶意代码（病毒、爬虫攻击、密码破解）、涉黄涉暴的网页内容、任何用于伤害他人的程序。遇到这类请求，温和拒绝并引导做正向的项目。`;
 

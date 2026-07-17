@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
-import { streamFetch } from "../lib/useStreamChat";
+import { streamFetchSmooth as streamFetch } from "../lib/useStreamChat";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
 import ConversationSidebar from "../components/ConversationSidebar";
@@ -47,6 +47,7 @@ export default function Chat() {
   const [showBreathing, setShowBreathing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(30); // 虚拟滚动：只渲染最近N条
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
 
@@ -63,6 +64,18 @@ export default function Chat() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: streamingText ? "auto" : "smooth" });
   }, [messages, streamingText]);
+
+  // 草稿自动保存（防抖，避免打字时频繁写）
+  useEffect(() => {
+    if (!activeId) return;
+    const t = setTimeout(() => {
+      try {
+        if (input.trim()) localStorage.setItem(`istarmate_draft_companion_${activeId}`, input);
+        else localStorage.removeItem(`istarmate_draft_companion_${activeId}`);
+      } catch {}
+    }, 400);
+    return () => clearTimeout(t);
+  }, [input, activeId]);
 
   async function boot() {
     const list = await loadConversations();
@@ -89,6 +102,12 @@ export default function Chat() {
     setActiveId(id);
     setMessages([]);
     setFeedbackMap({});
+    setVisibleCount(30);
+    // 恢复该会话未发送的草稿
+    try {
+      const draft = localStorage.getItem(`istarmate_draft_companion_${id}`);
+      setInput(draft || "");
+    } catch { setInput(""); }
     try {
       const r = await fetch(`/api/conversations?id=${id}`);
       const d = await r.json();
@@ -204,6 +223,7 @@ export default function Chat() {
     setInput("");
     setPendingImage(null);
     setShowEmotions(false);
+    try { if (activeId) localStorage.removeItem(`istarmate_draft_companion_${activeId}`); } catch {}
     import("../lib/feedback").then(({ feedback }) => feedback.send()).catch(() => {});
     checkCrisis(text);
 
@@ -342,7 +362,16 @@ export default function Chat() {
         {/* 消息区 */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 16px 0" }}>
           <div style={{ maxWidth: 820, margin: "0 auto" }}>
-            {displayMessages.map((m, i) => (
+            {displayMessages.length > visibleCount && (
+              <button onClick={() => setVisibleCount(c => c + 30)}
+                style={{ display: "block", margin: "0 auto 16px", background: "var(--card-solid)", border: "1px solid var(--line)", color: "var(--ink-soft)", fontSize: 12.5, padding: "7px 16px", borderRadius: 16, cursor: "pointer" }}>
+                ↑ 加载更早的消息
+              </button>
+            )}
+            {displayMessages.slice(Math.max(0, displayMessages.length - visibleCount)).map((m0, i0) => {
+              const i = Math.max(0, displayMessages.length - visibleCount) + i0;
+              const m = m0;
+              return (
               <ChatMessage
                 key={i}
                 role={m.role}
@@ -353,7 +382,8 @@ export default function Chat() {
                 feedbackValue={feedbackMap[i]}
                 onEdit={m.role === "user" && !loading ? (t) => editMessage(i, t) : null}
               />
-            ))}
+              );
+            })}
             {(loading || streamingText) && (
               <ChatMessage role="assistant" avatar="✦" content={streamingText} streaming showActions={false} />
             )}

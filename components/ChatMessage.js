@@ -25,6 +25,7 @@ export default function ChatMessage({
 }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [collapsed, setCollapsed] = useState(true); // 长回答默认折叠
   const [draft, setDraft] = useState("");
   const isUser = role === "user";
   const { text, images } = parseContent(content);
@@ -96,7 +97,23 @@ export default function ChatMessage({
             {isUser ? (
               text && <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
             ) : (
-              <RichText text={text} />
+              <>
+                <div style={{
+                  maxHeight: (!streaming && collapsed && text.length > 600) ? 240 : "none",
+                  overflow: (!streaming && collapsed && text.length > 600) ? "hidden" : "visible",
+                  position: "relative",
+                  maskImage: (!streaming && collapsed && text.length > 600) ? "linear-gradient(180deg, #000 65%, transparent)" : "none",
+                  WebkitMaskImage: (!streaming && collapsed && text.length > 600) ? "linear-gradient(180deg, #000 65%, transparent)" : "none",
+                }}>
+                  <RichText text={text} />
+                </div>
+                {!streaming && text.length > 600 && (
+                  <button onClick={() => setCollapsed(!collapsed)}
+                    style={{ background: "transparent", border: "none", color: "var(--purple-deep)", cursor: "pointer", fontSize: 12.5, fontWeight: 500, padding: "4px 0 0", marginTop: 2 }}>
+                    {collapsed ? "展开全部 ▾" : "收起 ▴"}
+                  </button>
+                )}
+              </>
             )}
             {streaming && <span style={{ opacity: 0.5, marginLeft: 2 }}>▌</span>}
           </div>
