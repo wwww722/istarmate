@@ -295,3 +295,144 @@ html[data-theme="dark"] select.input option {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.12); opacity: 0.75; }
 }
+
+@keyframes typingPulse {
+  0%, 80%, 100% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ==================== 移动端响应式 ==================== */
+@media (max-width: 768px) {
+  :root {
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  
+  body {
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .wrap {
+    max-width: 100%;
+    padding: 20px 16px 80px;
+  }
+  
+  .card {
+    padding: 18px 16px;
+  }
+  
+  .btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  
+  .input {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  
+  .choice-card {
+    padding: 14px 16px;
+  }
+  
+  .gradient-card {
+    padding: 18px 18px;
+  }
+  
+  .avatar-circle {
+    width: 72px;
+    height: 72px;
+    font-size: 32px;
+    border-radius: 18px;
+  }
+  
+  .tag {
+    font-size: 11px;
+    padding: 3px 10px;
+  }
+  
+  .msg-row {
+    margin-bottom: 12px;
+    gap: 6px;
+  }
+  
+  .bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 14px;
+    border-radius: 16px;
+  }
+  
+  .bubble.ai {
+    border-bottom-left-radius: 3px;
+  }
+  
+  .bubble.me {
+    border-bottom-right-radius: 3px;
+  }
+}
+
+@media (max-width: 480px) {
+  .wrap {
+    padding: 16px 12px 70px;
+  }
+  
+  .card {
+    padding: 14px 12px;
+  }
+  
+  .btn {
+    padding: 11px 14px;
+    font-size: 13.5px;
+  }
+  
+  .input {
+    padding: 10px 12px;
+    font-size: 13.5px;
+  }
+  
+  .choice-card {
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  
+  .msg-row {
+    margin-bottom: 10px;
+    gap: 5px;
+  }
+  
+  .bubble {
+    max-width: 88%;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  
+  .avatar-circle {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+    border-radius: 16px;
+  }
+}
+
+@media (hover: none) {
+  .card:hover, .btn:hover, .choice-card:hover, .gradient-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

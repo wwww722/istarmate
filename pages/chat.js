@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
-import { streamFetchSmooth as streamFetch } from "../lib/useStreamChat";
+import { streamFetchSmooth as streamFetch, createStreamController } from "../lib/useStreamChat";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
 import ConversationSidebar from "../components/ConversationSidebar";
@@ -48,8 +48,10 @@ export default function Chat() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30); // 虚拟滚动：只渲染最近N条
+  const [streamPaused, setStreamPaused] = useState(false);
   const bottomRef = useRef(null);
   const abortRef = useRef(null);
+  const streamController = useRef(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -253,7 +255,6 @@ export default function Chat() {
   // 编辑用户消息后，从那条重新开始
   async function editMessage(displayIdx, newText) {
     if (loading) return;
-    // displayIdx 是过滤后的索引，映射回真实索引
     const visible = messages.map((m, i) => ({ m, i })).filter(({ m }) => !isHidden(m));
     const real = visible[displayIdx];
     if (!real) return;
@@ -263,10 +264,29 @@ export default function Chat() {
     await runStream(next, next);
   }
 
+  async function deleteMessage(displayIdx) {
+    if (loading) return;
+    const visible = messages.map((m, i) => ({ m, i })).filter(({ m }) => !isHidden(m));
+    const real = visible[displayIdx];
+    if (!real) return;
+    const next = messages.slice(0, real.i).concat(messages.slice(real.i + 1));
+    setMessages(next);
+    saveMessages(next);
+  }
+
+  function toggleStreamPause() {
+    if (streamController.current) {
+      const paused = streamController.current.toggle();
+      setStreamPaused(paused);
+    }
+  }
+
   async function runStream(apiMessages, displayMsgs, convId) {
     setLoading(true);
     setStreamingText("");
+    setStreamPaused(false);
     let fullText = "";
+    streamController.current = createStreamController();
     await streamFetch("/api/chat", apiMessages,
       (token) => { fullText += token; setStreamingText(fullText); },
       () => {
@@ -274,12 +294,12 @@ export default function Chat() {
         setMessages(next);
         setStreamingText("");
         setLoading(false);
+        setStreamPaused(false);
         saveMessages(next, convId);
         maybeAutoTitle(next, convId);
         const userTurns = next.filter(m => m.role === "user" && !isHidden(m)).length;
         if (userTurns >= 3 && userTurns % 2 === 1) {
           fetch("/api/chat-summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next }) }).catch(() => {});
-          // 后台质量评估（抽样，不阻塞）
           fetch("/api/quality-eval", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: next, roleKind: "companion" }) }).catch(() => {});
         }
         if (next.filter(m => m.role === "assistant").length === 1) {
@@ -290,8 +310,10 @@ export default function Chat() {
         setMessages([...displayMsgs, { role: "assistant", content: `（${err}）` }]);
         setStreamingText("");
         setLoading(false);
+        setStreamPaused(false);
       },
-      {}, abortRef
+      {}, abortRef,
+      { pause: () => streamController.current?.isPaused() || false }
     );
   }
 
@@ -383,11 +405,12 @@ export default function Chat() {
                 onFeedback={m.role === "assistant" ? (r) => msgFeedback(i, r) : null}
                 feedbackValue={feedbackMap[i]}
                 onEdit={m.role === "user" && !loading ? (t) => editMessage(i, t) : null}
+                onDelete={m.role === "user" && !loading ? () => deleteMessage(i) : null}
               />
               );
             })}
             {(loading || streamingText) && (
-              <ChatMessage role="assistant" avatar="✦" content={streamingText} streaming showActions={false} />
+              <ChatMessage role="assistant" avatar="✦" content={streamingText} streaming showActions={false} onTogglePause={toggleStreamPause} isPaused={streamPaused} />
             )}
             <div ref={bottomRef} style={{ height: 12 }} />
           </div>

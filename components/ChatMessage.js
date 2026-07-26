@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { RichText } from "../lib/richText";
 
-// 从多模态content里取出文本和图片
 function parseContent(content) {
   if (typeof content === "string") return { text: content, images: [] };
   if (Array.isArray(content)) {
@@ -18,14 +17,37 @@ function parseContent(content) {
   return { text: "", images: [] };
 }
 
+function TypingIndicator() {
+  return (
+    <div style={{ display: "flex", gap: 4, alignItems: "center", padding: "4px 0" }}>
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: "var(--ink-muted)",
+            animation: `typingPulse 1.4s ease-in-out infinite`,
+            animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ChatMessage({
   role, content, avatar, streaming,
   onRegenerate, onFeedback, feedbackValue, onEdit,
   showActions = true,
+  onTogglePause,
+  isPaused,
+  onDelete,
 }) {
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [collapsed, setCollapsed] = useState(true); // 长回答默认折叠
+  const [collapsed, setCollapsed] = useState(true);
   const [draft, setDraft] = useState("");
   const isUser = role === "user";
   const { text, images } = parseContent(content);
@@ -115,15 +137,38 @@ export default function ChatMessage({
                 )}
               </>
             )}
-            {streaming && <span style={{ opacity: 0.5, marginLeft: 2 }}>▌</span>}
+            {streaming && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+                <TypingIndicator />
+                {onTogglePause && (
+                  <button
+                    onClick={onTogglePause}
+                    title={isPaused ? "继续" : "暂停"}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--ink-muted)",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      padding: "2px 4px",
+                      borderRadius: 4,
+                    }}
+                  >
+                    {isPaused ? "▶" : "⏸"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* 操作栏 */}
         {!streaming && !editing && showActions && (
           <div style={{ display: "flex", gap: 4, marginTop: 6, paddingLeft: 4, justifyContent: isUser ? "flex-end" : "flex-start" }}>
             {isUser && onEdit && (
               <button onClick={startEdit} title="编辑" style={actionBtnStyle}>✎</button>
+            )}
+            {isUser && onDelete && (
+              <button onClick={onDelete} title="删除" style={{ ...actionBtnStyle, color: "var(--coral)" }}>🗑</button>
             )}
             {!isUser && text && (
               <>
