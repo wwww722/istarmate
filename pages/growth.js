@@ -157,7 +157,26 @@ export default function Growth() {
             </div>
           )}
 
-          <button className="btn primary" style={{ marginTop: 4 }} onClick={() => router.push("/chat")}>
+          {/* 更多成长记录 */}
+          <div style={{ marginTop: 20 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 10px" }}>更多</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                { emoji: "📈", label: "每周报告", path: "/weekly-report" },
+                { emoji: "🌙", label: "每月成长", path: "/monthly-report" },
+                { emoji: "🧠", label: "星伴记得的事", path: "/memories" },
+                { emoji: "🏆", label: "我的成就", path: "/achievements" },
+              ].map(item => (
+                <button key={item.path} onClick={() => router.push(item.path)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card-solid)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", cursor: "pointer", fontSize: 13.5, color: "var(--ink)", textAlign: "left" }}>
+                  <span style={{ fontSize: 17 }}>{item.emoji}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button className="btn primary" style={{ marginTop: 20 }} onClick={() => router.push("/chat")}>
             继续和星伴聊聊 →
           </button>
         </>

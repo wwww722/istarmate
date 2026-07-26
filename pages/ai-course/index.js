@@ -21,7 +21,7 @@ export default function AiCourse() {
   return (
     <div className="wrap">
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/home"); }} style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
+        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/dashboard"); }} style={{ color: "var(--ink-soft)", fontSize: 18 }}>←</a>
         <h2 style={{ fontSize: 19, margin: 0 }}>AI 素养课程</h2>
       </div>
 

@@ -29,12 +29,6 @@ export default async function handler(req, res) {
       await tryUnlock("first_login");
       await tryUnlock("first_chat");
       break;
-    case "first_scenario":
-      await tryUnlock("first_scenario");
-      const count = await countCompletedScenarios(userId);
-      if (count >= 5) await tryUnlock("scenario_5");
-      if (count >= 10) await tryUnlock("scenario_10");
-      break;
     case "first_questionnaire":
       await tryUnlock("first_questionnaire");
       break;

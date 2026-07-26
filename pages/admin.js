@@ -176,7 +176,7 @@ export default function Admin() {
           <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 12px" }}>哪些功能真的被用起来了</p>
           {(() => {
             const max = Math.max(...usage.map(u => Number(u.count)), 1);
-            const LABELS = { chat: "星伴聊天", code: "代码星", checkin: "心情打卡", breathing: "呼吸练习", scenario: "小剧场" };
+            const LABELS = { chat: "星伴聊天", code: "代码星", checkin: "心情打卡", breathing: "呼吸练习" };
             return usage.map((u, i) => (
               <div key={i} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>

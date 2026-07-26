@@ -57,7 +57,7 @@ export default function Login() {
       const res = await signIn("credentials", { email, password, redirect: false });
       setLoading(false);
       if (res?.error) setError("登录失败，请检查邮箱或密码");
-      else router.push("/home");
+      else router.push("/dashboard");
     } catch {
       setLoading(false);
       setError("网络异常，请稍后重试");

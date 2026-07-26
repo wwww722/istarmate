@@ -23,9 +23,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { status } = useSession();
   const [profile, setProfile] = useState(null);
-  const [scenarioTitle, setScenarioTitle] = useState("今天的故事");
   const [dayCount, setDayCount] = useState(1);
-  const [scenarioDone, setScenarioDone] = useState(false);
   const [mood, setMood] = useState(null);
   const [showDiary, setShowDiary] = useState(false);
   const [diaryMood, setDiaryMood] = useState(null);
@@ -51,27 +49,32 @@ export default function Dashboard() {
 
   async function load() {
     setLoading(true);
-    const [pRes, sRes, cRes, qRes, aiRes] = await Promise.all([
+    const [pRes, cRes, qRes, aiRes] = await Promise.all([
       fetch("/api/profile"),
-      fetch("/api/scenario?preview=1"),  // 只拿预览信息，不触发AI生成
       fetch("/api/checkin"),
       fetch("/api/questionnaire"),
       fetch("/api/ai-course-session"),
     ]);
 
-    if (!sRes.ok) { setLoading(false); router.push("/questionnaire"); return; }
-
     const pData = await pRes.json();
-    const sData = await sRes.json();
-    const cData = await cRes.json();
+    // 新用户引导检查（原来在 home 页做，现在合并进来，省一层跳转）
+    if (!pData.profile?.nickname) { router.replace("/onboarding"); return; }
+    if (!pData.profile?.avatar_name) { router.replace("/avatar"); return; }
+
     const qData = await qRes.json();
+    // 没做过问卷 → 先去做问卷
+    if (!qData.questionnaire) { setLoading(false); router.push("/questionnaire"); return; }
+
+    const cData = await cRes.json();
 
     setProfile(pData.profile);
-    setScenarioTitle(sData.scenarioTitle || "今天的故事");
-    setDayCount(sData.dayCount || 1);
-    setScenarioDone(sData.completed || false);
     setStreak(cData.streak || 0);
     setMoodLogs(cData.logs || []);
+    // "第N天"：从最早一次打卡算起
+    if (cData.logs?.length > 0) {
+      const first = new Date(cData.logs[cData.logs.length - 1].log_date);
+      setDayCount(Math.max(1, Math.floor((Date.now() - first.getTime()) / 86400000) + 1));
+    }
     setLastQuestionnaireDate(qData.questionnaire?.created_at || null);
     const aiData = await aiRes.json();
     setAiCourseActive(aiData.messages?.length > 1);
@@ -188,16 +191,9 @@ export default function Dashboard() {
                 boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 10, overflow: "hidden",
               }}>
                 {[
+                  { label: "🌱 我的成长", action: () => router.push("/growth") },
                   { label: "👤 我的资料", action: () => router.push("/onboarding") },
-                  { label: "📊 重新做问卷", action: () => router.push("/questionnaire") },
-                  { label: "🏆 我的成就", action: () => router.push("/achievements") },
-                  { label: "📈 每周报告", action: () => router.push("/weekly-report") },
-                  { label: "🌙 每月成长报告", action: () => router.push("/monthly-report") },
                   { label: "🎟️ 邀请朋友", action: () => router.push("/invite") },
-                  { label: "📔 情绪日记", action: () => router.push("/mood-diary") },
-                  { label: "🧠 星伴记得的事", action: () => router.push("/memories") },
-                  { label: "🌱 我的这一个月", action: () => router.push("/growth") },
-                  { label: "🌬️ 呼吸练习", action: () => { setShowSettings(false); setShowBreathing(true); } },
                   { label: "⚙️ 账号设置", action: () => router.push("/account") },
                   ...(isAdminUser ? [{ label: "🛠️ 管理后台", action: () => router.push("/admin") }] : []),
                   { label: "🚪 退出登录", action: () => signOut({ callbackUrl: "/login" }), danger: true },
@@ -239,17 +235,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 今日状态整合 */}
-      {aiCourseActive && (
-        <div className="card" style={{ marginBottom: 16, padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}
-          onClick={() => router.push("/ai-course/studio")} style={{ cursor: "pointer", marginBottom: 16 }}>
-          <div style={{ fontSize: 28 }}>💻</div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 13.5, fontWeight: 500, margin: "0 0 2px" }}>AI 素养课程进行中</p>
-            <p style={{ fontSize: 12.5, color: "var(--ink-soft)", margin: 0 }}>点击继续上次的对话 →</p>
-          </div>
+      {/* 两个核心：星伴 + 代码星 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div className="card" onClick={() => router.push("/chat")}
+          style={{ cursor: "pointer", padding: "18px 16px", textAlign: "center", background: "linear-gradient(135deg, rgba(184,174,255,0.12), rgba(124,111,224,0.06))" }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>✦</div>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 3px" }}>找星伴聊聊</p>
+          <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>心里的事，说给它听</p>
         </div>
-      )}
+        <div className="card" onClick={() => router.push("/ai-course/studio")}
+          style={{ cursor: "pointer", padding: "18px 16px", textAlign: "center", background: "linear-gradient(135deg, rgba(63,167,150,0.12), rgba(63,167,150,0.05))" }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>💻</div>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 3px" }}>找代码星创作</p>
+          <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>{aiCourseActive ? "继续上次的项目" : "做出你的第一个作品"}</p>
+        </div>
+      </div>
 
       {/* 心情折线图 */}
       {moodLogs.length > 0 && <MoodChart logs={moodLogs} />}
@@ -278,25 +278,6 @@ export default function Dashboard() {
           </button>
         </div>
       )}
-
-      {/* 今日小剧场 */}
-      <div className="gradient-card" onClick={() => router.push("/scenario")} style={{ marginBottom: 14 }}>
-        <p style={{ fontSize: 12.5, opacity: 0.85, marginBottom: 6 }}>
-          {scenarioDone ? "今日小剧场 · 已完成 ✓" : "今日小剧场 · AI 即时生成"}
-        </p>
-        <h3 style={{ fontSize: 18, marginBottom: 6 }}>{scenarioTitle}</h3>
-        <p style={{ fontSize: 13.5, opacity: 0.9 }}>
-          {scenarioDone ? "今天的故事已经讲完啦，明天再来 ✨" : "点开看看今天发生了什么 →"}
-        </p>
-      </div>
-
-
-      <p style={{ textAlign: "center", marginTop: 12 }}>
-        <a href="#" onClick={(e) => { e.preventDefault(); router.push("/home"); }}
-          style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-          ← 回到首页
-        </a>
-      </p>
 
       {/* 情绪日记输入弹窗 */}
       {showDiary && diaryMood && (

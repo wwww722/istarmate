@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import {
   saveMoodLog, getMoodLogs, getAchievements, unlockAchievement,
-  checkStreak, countCompletedScenarios
+  checkStreak
 } from "../../lib/db";
 
 function todayStr() {

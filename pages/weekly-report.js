@@ -77,7 +77,6 @@ export default function WeeklyReport() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                   {[
                     { label: "打卡天数", value: `${report.checkIns} 天`, color: "var(--purple)" },
-                    { label: "完成小剧场", value: `${report.scenarios} 次`, color: "var(--teal)" },
                     { label: "本周基调", value: `${MOOD_EMOJI[report.dominantMood]} ${report.dominantMoodLabel}`, color: avgToColor(report.avgScore) },
                     { label: "平均心情", value: `${report.avgScore}/4`, color: avgToColor(report.avgScore) },
                   ].map((item, i) => (

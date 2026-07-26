@@ -1,7 +1,7 @@
 // pages/api/weekly-report.js
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
-import { getMoodLogs, getWeeklyReports, saveWeeklyReport, getScenarioHistory } from "../../lib/db";
+import { getMoodLogs, getWeeklyReports, saveWeeklyReport } from "../../lib/db";
 
 const MOOD_VALUES = { great: 4, ok: 3, meh: 2, down: 1, bad: 0 };
 const MOOD_LABEL_ZH = { great: "很好", ok: "还行", meh: "一般", down: "低落", bad: "很差" };
@@ -49,12 +49,6 @@ async function generateCurrentWeekReport(userId) {
   const worstDay = moodValues.reduce((a, b) => a.value < b.value ? a : b);
   const avgValue = moodValues.reduce((sum, m) => sum + m.value, 0) / moodValues.length;
 
-  const history = await getScenarioHistory(userId, 7);
-  const scenariosThisWeek = history.filter(h => {
-    const d = typeof h.scenario_date === "string" ? h.scenario_date : new Date(h.scenario_date).toISOString().slice(0, 10);
-    return d >= weekStart && d <= weekEndStr && h.completed;
-  }).length;
-
   const moodCounts = {};
   weekLogs.forEach(l => { moodCounts[l.mood] = (moodCounts[l.mood] || 0) + 1; });
   const dominantMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "meh";
@@ -62,7 +56,6 @@ async function generateCurrentWeekReport(userId) {
   const report = {
     weekStart,
     checkIns: weekLogs.length,
-    scenarios: scenariosThisWeek,
     bestDay: { date: typeof bestDay.date === "string" ? bestDay.date : new Date(bestDay.date).toISOString().slice(0, 10), mood: bestDay.mood, label: MOOD_LABEL_ZH[bestDay.mood] },
     worstDay: { date: typeof worstDay.date === "string" ? worstDay.date : new Date(worstDay.date).toISOString().slice(0, 10), mood: worstDay.mood, label: MOOD_LABEL_ZH[worstDay.mood] },
     avgScore: Math.round(avgValue * 10) / 10,
