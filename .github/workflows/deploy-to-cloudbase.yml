@@ -23,35 +23,43 @@ jobs:
       - name: 安装 CloudBase CLI
         run: npm install -g @cloudbase/cli@latest
 
-      - name: 写入 CloudBase 配置
+      - name: 用 Node.js 生成正确的 cloudbaserc.json（避免 shell 引号问题）
+        env:
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
         run: |
-          cat > cloudbaserc.json << "ENDOFFILE"
-          {
-            "envId": ${{ secrets.TCB_ENV_ID }},
-            "framework": {
-              "name": "istarmate-cn",
-              "plugins": {
-                "client": {
-                  "use": "@cloudbase/framework-plugin-next",
-                  "inputs": {
-                    "buildCommand": "npm run build",
-                    "entry": "./",
-                    "cloudFunctionPath": "/next",
-                    "runtime": "Nodejs16.13",
-                    "envVariables": {
-                      "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
-                      "NEXTAUTH_SECRET": "${{ secrets.NEXTAUTH_SECRET }}",
-                      "NEXTAUTH_URL": "${{ secrets.NEXTAUTH_URL }}",
-                      "SILICONFLOW_API_KEY": "${{ secrets.SILICONFLOW_API_KEY }}"
+          node -e "
+            const config = {
+              envId: process.env.TCB_ENV_ID,
+              framework: {
+                name: 'istarmate-cn',
+                plugins: {
+                  client: {
+                    use: '@cloudbase/framework-plugin-next',
+                    inputs: {
+                      buildCommand: 'npm run build',
+                      entry: './',
+                      cloudFunctionPath: '/next',
+                      runtime: 'Nodejs16.13',
+                      envVariables: {
+                        DATABASE_URL: process.env.DATABASE_URL,
+                        NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+                        NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+                        SILICONFLOW_API_KEY: process.env.SILICONFLOW_API_KEY
+                      }
                     }
                   }
                 }
               }
-            }
-          }
-          ENDOFFILE
-          echo "✅ cloudbaserc.json 已写入"
-          cat cloudbaserc.json
+            };
+            require('fs').writeFileSync('cloudbaserc.json', JSON.stringify(config, null, 2) + '\
+');
+            console.log('✅ cloudbaserc.json 已生成');
+            console.log(require('fs').readFileSync('cloudbaserc.json', 'utf8').substring(0, 500));
+          "
 
       - name: CloudBase 登录并部署
         env:
