@@ -1,0 +1,66 @@
+name: 部署到腾讯云 CloudBase（国内加速）
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 安装依赖
+        run: npm ci || npm install
+
+      - name: 安装 CloudBase CLI
+        run: npm install -g @cloudbase/cli@latest
+
+      - name: 写入 CloudBase 配置
+        run: |
+          cat > cloudbaserc.json << "ENDOFFILE"
+          {
+            "envId": ${{ secrets.TCB_ENV_ID }},
+            "framework": {
+              "name": "istarmate-cn",
+              "plugins": {
+                "client": {
+                  "use": "@cloudbase/framework-plugin-next",
+                  "inputs": {
+                    "buildCommand": "npm run build",
+                    "entry": "./",
+                    "cloudFunctionPath": "/next",
+                    "runtime": "Nodejs16.13",
+                    "envVariables": {
+                      "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
+                      "NEXTAUTH_SECRET": "${{ secrets.NEXTAUTH_SECRET }}",
+                      "NEXTAUTH_URL": "${{ secrets.NEXTAUTH_URL }}",
+                      "SILICONFLOW_API_KEY": "${{ secrets.SILICONFLOW_API_KEY }}"
+                    }
+                  }
+                }
+              }
+            }
+          }
+          ENDOFFILE
+          echo "✅ cloudbaserc.json 已写入"
+          cat cloudbaserc.json
+
+      - name: CloudBase 登录并部署
+        env:
+          TENCENTCLOUD_SECRETID: ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+          TENCENTCLOUD_SECRETKEY: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: |
+          echo "🔑 登录 CloudBase..."
+          cloudbase login --apiKeyId $TENCENTCLOUD_SECRETID --apiKey $TENCENTCLOUD_SECRETKEY
+          echo "🚀 开始部署..."
+          cloudbase framework:deploy -e $TCB_ENV_ID
+          echo "✅ 部署完成！"
