@@ -23,6 +23,22 @@ jobs:
       - name: 安装 CloudBase CLI
         run: npm install -g @cloudbase/cli@latest
 
+      - name: 检查密钥是否已注入（仅显示首尾 4 位，不会泄露）
+        env:
+          TENCENTCLOUD_SECRET_ID: ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+          TENCENTCLOUD_SECRET_KEY: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
+          TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
+        run: |
+          SID="$TENCENTCLOUD_SECRET_ID"
+          SKEY="$TENCENTCLOUD_SECRET_KEY"
+          EID="$TCB_ENV_ID"
+          echo "SecretId:  ${SID:0:4}...${SID: -4} (长度=${#SID})"
+          echo "SecretKey: ${SKEY:0:4}...${SKEY: -4} (长度=${#SKEY})"
+          echo "EnvId:     $EID"
+          if [ "${#SID}" -lt 10 ]; then echo "❌ SecretId 太短或未注入！检查 GitHub Secrets 名字是否是 TENCENTCLOUD_SECRET_ID"; fi
+          if [ "${#SKEY}" -lt 10 ]; then echo "❌ SecretKey 太短或未注入！检查 GitHub Secrets 名字是否是 TENCENTCLOUD_SECRET_KEY"; fi
+          if [ "${#EID}" -lt 5 ]; then echo "❌ EnvId 未注入！检查 GitHub Secrets 名字是否是 TCB_ENV_ID"; fi
+
       - name: 生成 cloudbaserc.json 配置文件
         env:
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
@@ -39,12 +55,13 @@ jobs:
 
       - name: CloudBase 登录并部署
         env:
-          TENCENTCLOUD_SECRETID: ${{ secrets.TENCENTCLOUD_SECRET_ID }}
-          TENCENTCLOUD_SECRETKEY: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
+          TCB_SECRET_ID: ${{ secrets.TENCENTCLOUD_SECRET_ID }}
+          TCB_SECRET_KEY: ${{ secrets.TENCENTCLOUD_SECRET_KEY }}
           TCB_ENV_ID: ${{ secrets.TCB_ENV_ID }}
         run: |
-          echo "🔑 登录 CloudBase..."
-          cloudbase login --apiKeyId $TENCENTCLOUD_SECRETID --apiKey $TENCENTCLOUD_SECRETKEY
-          echo "🚀 开始部署..."
-          cloudbase framework:deploy -e $TCB_ENV_ID
-          echo "✅ 部署完成！"
+          echo "🔑 使用 TCB_SECRET_ID / TCB_SECRET_KEY 环境变量登录 CloudBase..."
+          cloudbase login --secretId "$TCB_SECRET_ID" --secretKey "$TCB_SECRET_KEY"
+          echo "✅ 登录成功！"
+          echo "🚀 开始部署（envId=$TCB_ENV_ID）..."
+          cloudbase framework:deploy -e "$TCB_ENV_ID"
+          echo "🎉 部署完成！"
