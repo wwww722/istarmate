@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
   const userId = Number(session.userId);
-  const { messages = [], scenario = "general", context: ctxOverride, personaId: personaOverride, modelId: modelOverride, charId: charIdRaw, attachments = [] } = req.body || {};
+  const { messages = [], scenario = "general", context: ctxOverride, personaId: personaOverride, modelId: modelOverride, charId: charIdRaw, attachments = [], extraInstruction = "" } = req.body || {};
   const tier = await getCurrentTier(userId);
 
   // 1. 决定角色
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     errorStack: scenario === "code" ? ctxOverride?.errorStack : null,
   });
   const scenarioSystem = buildScenarioContext(scenario, profile, recentContext);
-  const finalSystem = (persona.systemPrefix || "") + "\n\n" + scenarioSystem + "\n" + charSystemPrompt;
+  const finalSystem = (persona.systemPrefix || "") + "\n\n" + scenarioSystem + "\n" + charSystemPrompt + (extraInstruction ? "\n" + extraInstruction : "");
 
   // 6. 拼 messages（去掉原来的 system，统一替换；支持多模态 attachments）
   const cleanMessages = messages.filter(m => m.role !== "system");

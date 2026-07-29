@@ -1,7 +1,7 @@
 // pages/api/memories.js - 用户查看/删除星伴记住的关于自己的事
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
-import { getAllMemories, deleteMemory } from "../../lib/db";
+import { getAllMemories, deleteMemory, upsertMemory } from "../../lib/db";
 
 export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions);
@@ -11,6 +11,13 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const memories = await getAllMemories(userId);
     return res.status(200).json({ memories });
+  }
+
+  if (req.method === "POST") {
+    const { category, key, detail, importance } = req.body || {};
+    if (!category || !key || !detail) return res.status(400).json({ error: "缺少参数" });
+    await upsertMemory(userId, String(category), String(key).slice(0, 30), String(detail).slice(0, 200), Number(importance) || 1);
+    return res.status(200).json({ ok: true });
   }
 
   if (req.method === "DELETE") {

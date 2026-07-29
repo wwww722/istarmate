@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import CharacterSwitcher from "../components/CharacterSwitcher";
 import ModelSwitcher from "../components/ModelSwitcher";
 import ReasoningStream, { splitReasoning } from "../components/ReasoningStream";
 import MultimodalUpload from "../components/MultimodalUpload";
@@ -13,6 +12,12 @@ import CbtMicroCard, { CBT_PRESETS } from "../components/CbtMicroCard";
 import CodeApplyBar from "../components/CodeApplyBar";
 import LearningPathWizard from "../components/LearningPathWizard";
 import { getCharacter } from "../lib/characters";
+import {
+  classifyTopic, HOST_DUTY, shouldInvite, pickAskScript, pickGreetingScript,
+  exitScript, declineScript, roundtableRoles, supportInstruction, relayInstruction,
+} from "../lib/roundtable";
+import SessionSummaryCard from "../components/SessionSummaryCard";
+import RoundtableEntrance from "../components/RoundtableEntrance";
 
 const SCENARIOS = [
   { id: "general", name: "找许安和聊聊", icon: "🌙", char: "anhe", desc: "心里的事，说给她听" },
@@ -49,7 +54,19 @@ export default function ChatPage() {
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
   const [sending, setSending] = useState(false);
-  const [charId, setCharId] = useState("anhe");
+  const [charId, setCharId] = useState("anhe"); // 当前主持人
+  // ===== 圆桌模式状态 =====
+  const [roundtable, setRoundtable] = useState(false);        // 是否圆桌模式（两人在场）
+  const [recentTopics, setRecentTopics] = useState([]);       // 最近几轮话题分类
+  const [inviteAsk, setInviteAsk] = useState(null);           // 主持人问的话术气泡 {host, line}
+  const [invitedJoining, setInvitedJoining] = useState(false); // 另一个人进场动画中
+  const [roundtableStartedAt, setRoundtableStartedAt] = useState(0); // 圆桌开始时间（算时长）
+  const [showHostPicker, setShowHostPicker] = useState(false); // 每天首次进入的主持人选择浮层
+  const silenceRef = useRef({});                              // 24h静默 {code:ts, emotion:ts}
+  const [sessionCard, setSessionCard] = useState(null);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [cardShownAt, setCardShownAt] = useState(0); // 防止20条触发后反复弹
+  const idleTimerRef = useRef(null);
   const [personaId, setPersonaId] = useState("auto");
   const [modelId, setModelId] = useState("auto");
   const [attachments, setAttachments] = useState([]);
@@ -88,6 +105,23 @@ export default function ChatPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
+  // 每天首次进聊天页：弹一次"今天想让谁陪你"
+  useEffect(() => {
+    if (!session?.user?.email) return;
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (localStorage.getItem("istarmate_host_picked") !== today) {
+        setShowHostPicker(true);
+      }
+    } catch {}
+  }, [session?.user?.email]);
+
+  function pickHost(id) {
+    setCharId(id);
+    setShowHostPicker(false);
+    try { localStorage.setItem("istarmate_host_picked", new Date().toISOString().slice(0, 10)); } catch {}
+  }
+
   // 场景切换时：第一个 AI 发一条欢迎语
   useEffect(() => {
     if (!session?.user?.email) return;
@@ -97,11 +131,132 @@ export default function ChatPage() {
     setMessages([{ role: "assistant", character: ch.id, content: greet, ts: Date.now() }]);
   }, [scenario, charId, session?.user?.email]);
 
+  // ===== 会话小结卡：生成 =====
+  async function generateSessionCard() {
+    if (cardLoading || sessionCard) return;
+    const realMsgs = messages.filter(m => m.role === "user" || m.role === "assistant");
+    if (realMsgs.length < 4) return; // 太短不出卡
+    setCardLoading(true);
+    try {
+      const roleKind = (scenario === "code" || charId === "yusheng") ? "code" : "companion";
+      const r = await fetch("/api/session-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: realMsgs, roleKind }),
+      });
+      const d = await r.json();
+      if (d.card) { setSessionCard(d.card); setCardShownAt(realMsgs.length); }
+    } catch {}
+    setCardLoading(false);
+  }
+
+  // 触发①：10分钟没说话
+  useEffect(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    const realCount = messages.filter(m => m.role === "user" || m.role === "assistant").length;
+    if (realCount >= 4 && !sessionCard) {
+      idleTimerRef.current = setTimeout(() => { generateSessionCard(); }, 10 * 60 * 1000);
+    }
+    return () => { if (idleTimerRef.current) clearTimeout(idleTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  // 触发③：超过20条（每新增一轮判断一次，且距上次弹卡至少间隔）
+  useEffect(() => {
+    const realCount = messages.filter(m => m.role === "user" || m.role === "assistant").length;
+    if (realCount >= 20 && realCount - cardShownAt >= 20 && !sessionCard && !loading) {
+      generateSessionCard();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, loading]);
+
+  // 存进记忆墙
+  async function saveCardToMemory(card) {
+    try {
+      await fetch("/api/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: card.roleKind === "code" ? "work" : "heart",
+          key: (card.summary || "").slice(0, 20),
+          detail: card.summary,
+          importance: 2,
+        }),
+      });
+    } catch {}
+    setSessionCard(null);
+  }
+
+  // 流式请求一个角色的回复。whoChar=角色id, extra=额外指令, convMsgs=发给API的历史
+  // 埋点：圆桌事件
+  function trackEvent(event, detail) {
+    fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event, detail }) }).catch(() => {});
+  }
+
+  async function streamReply(whoChar, extra, convMsgs) {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: convMsgs.map(({ role, content, attachments: a }) => ({ role, content, attachments: a })),
+        scenario, charId: whoChar, personaId, modelId,
+        attachments: whoChar === charId ? attachments : [],
+        extraInstruction: extra || "",
+      }),
+    });
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "", answer = "", metaDone = false;
+    // 先占一个空气泡
+    setMessages(ms => [...ms, { role: "assistant", character: whoChar, persona: personaId, content: "", ts: Date.now(), support: extra?.includes("旁听者") }]);
+    const pushAi = () => setMessages(ms => {
+      const n = [...ms];
+      // 更新最后一条属于whoChar的空/进行中气泡
+      for (let i = n.length - 1; i >= 0; i--) {
+        if (n[i].role === "assistant" && n[i].character === whoChar) { n[i] = { ...n[i], content: answer }; break; }
+      }
+      return n;
+    });
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s || s.startsWith("event:") || !s.startsWith("data:")) continue;
+        const payload = s.slice(5).trim();
+        if (!payload) continue;
+        if (payload === "[DONE]") {
+          if (answer) {
+            const { answer: pure } = splitReasoning(answer);
+            if (activeMeta?.tier !== "free") setReadText(pure + " ");
+          }
+          continue;
+        }
+        if (!metaDone) {
+          try { const j = JSON.parse(payload); if (j.model || j.character) { setActiveMeta(j); metaDone = true; continue; } } catch {}
+        }
+        try {
+          const j = JSON.parse(payload);
+          if (j.error) { alert("出错啦：" + j.error); continue; }
+          const delta = j?.choices?.[0]?.delta || {};
+          if (typeof delta.reasoning_content === "string") answer += `<think>${delta.reasoning_content}</think>`;
+          if (typeof delta.content === "string") answer += delta.content;
+          pushAi();
+        } catch {}
+      }
+    }
+    return answer;
+  }
+
   async function send() {
     if (busy || sending) return;
     const text = input.trim();
     if (!text && attachments.length === 0) return;
     const userMsg = { role: "user", content: text, ts: Date.now(), attachments: [...attachments] };
+    const baseMsgs = messages.concat(userMsg);
     setMessages(ms => [...ms, userMsg]);
     setInput("");
     setAttachments([]);
@@ -110,70 +265,49 @@ export default function ChatPage() {
     const preset = detectCbtPreset(text);
     if (preset) setCbtCard(CBT_PRESETS[preset]);
 
+    // 话题分类 + 记录最近话题
+    const topic = classifyTopic(text);
+    const newTopics = [...recentTopics, topic].slice(-5);
+    setRecentTopics(newTopics);
+
     setSending(true); setBusy(true);
     try {
-      const resp = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: messages.concat(userMsg).map(({ role, content, attachments: a }) => ({ role, content, attachments: a })),
-          scenario, charId, personaId, modelId, attachments,
-        }),
-      });
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "", answer = "", metaDone = false;
-      const pushAi = () => setMessages(ms => {
-        const last = ms[ms.length - 1];
-        const newAi = { role: "assistant", character: charId, persona: personaId, content: answer, ts: Date.now() };
-        if (last?.role === "assistant") { const n = [...ms]; n[n.length - 1] = { ...last, ...newAi }; return n; }
-        return [...ms, newAi];
-      });
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop();
-        for (const line of lines) {
-          const s = line.trim();
-          if (!s) continue;
-          if (s.startsWith("event:")) continue;
-          if (!s.startsWith("data:")) continue;
-          const payload = s.slice(5).trim();
-          if (!payload) continue;
-          if (payload === "[DONE]") {
-            // 完成后自动朗读一下成长版的话
-            if (answer) {
-              const { answer: pure } = splitReasoning(answer);
-              if (activeMeta?.tier !== "free") setReadText(pure + " ");
-            }
-            continue;
+      if (roundtable) {
+        // ===== 圆桌模式：按话题分工双答 =====
+        const roles = roundtableRoles(topic);
+        if (topic === "mixed") {
+          // 许安和先处理情绪，再余生接力技术
+          await streamReply("anhe", "", baseMsgs);
+          await new Promise(r => setTimeout(r, 300));
+          await streamReply("yusheng", relayInstruction(), baseMsgs);
+        } else if (roles.main) {
+          // 主说的人长回复
+          await streamReply(roles.main, "", baseMsgs);
+          // 补一句的人短回复
+          if (roles.supportSpeaks) {
+            await new Promise(r => setTimeout(r, 300));
+            await streamReply(roles.support, supportInstruction(roles.support), baseMsgs);
           }
-          if (!metaDone) {
-            try {
-              // meta 是第一个 event: meta + data:{json}。这里如果 payload 里能解析到 model 字段就收
-              const j = JSON.parse(payload);
-              if (j.model || j.character) { setActiveMeta(j); metaDone = true; continue; }
-            } catch {}
-          }
-          try {
-            const j = JSON.parse(payload);
-            if (j.error) { alert("出错啦：" + j.error); continue; }
-            const delta = j?.choices?.[0]?.delta || {};
-            if (typeof delta.reasoning_content === "string") {
-              answer += `<think>${delta.reasoning_content}</think>`;
-            }
-            if (typeof delta.content === "string") answer += delta.content;
-            pushAi();
-          } catch {}
+        } else {
+          // pure话题：只当前主持人说
+          await streamReply(charId, "", baseMsgs);
+        }
+      } else {
+        // ===== 单人模式：主持人回复 =====
+        await streamReply(charId, "", baseMsgs);
+        // 跨界检测：该不该问"要不要叫另一个过来"
+        const duty = HOST_DUTY[charId];
+        const opposite = duty === "emotion" ? "code" : "emotion";
+        const silenceUntil = silenceRef.current[opposite] || 0;
+        if (Date.now() > silenceUntil && shouldInvite(newTopics, charId)) {
+          setInviteAsk({ host: charId, line: pickAskScript(charId) });
+          trackEvent("host_asked_invite", { host: charId, detected: topic, round: newTopics.length });
         }
       }
-      // 发完了触发任务完成飘字（chat5达标会触发）
+
+      // 任务飘字
       fetch("/api/gamification/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "progress", payload: { taskCode: "chat5", inc: 1 } }) })
-        .then(r => r.json()).then(d => {
-          if (d?.justAwarded) window.dispatchEvent(new CustomEvent("istarmate-award", { detail: { justAwarded: d.justAwarded } }));
-        }).catch(() => {});
+        .then(r => r.json()).then(d => { if (d?.justAwarded) window.dispatchEvent(new CustomEvent("istarmate-award", { detail: { justAwarded: d.justAwarded } })); }).catch(() => {});
     } catch (e) {
       console.error(e);
       setMessages(ms => [...ms, { role: "assistant", character: charId, content: "呜呜刚才网络卡住了，你再说一遍呀🥺" + (e?.message ? "（" + e.message + "）" : ""), ts: Date.now() }]);
@@ -181,6 +315,72 @@ export default function ChatPage() {
       setSending(false); setBusy(false);
     }
   }
+
+  // 圆桌配额检查：免费版每天1次，付费版无限
+  function canEnterRoundtable() {
+    const tier = activeMeta?.tier || "free";
+    if (tier !== "free") return true; // 付费无限
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const rec = JSON.parse(localStorage.getItem("istarmate_roundtable_quota") || "{}");
+      return !(rec.date === today && rec.count >= 1);
+    } catch { return true; }
+  }
+
+  function consumeRoundtableQuota() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const rec = JSON.parse(localStorage.getItem("istarmate_roundtable_quota") || "{}");
+      const count = (rec.date === today ? rec.count : 0) + 1;
+      localStorage.setItem("istarmate_roundtable_quota", JSON.stringify({ date: today, count }));
+    } catch {}
+  }
+
+  // 接受邀请：叫另一个人进场
+  async function acceptInvite() {
+    // 配额检查
+    if (!canEnterRoundtable()) {
+      setInviteAsk(null);
+      trackEvent("invite_quota_hit", { host: inviteAsk.host });
+      setMessages(ms => [...ms, { role: "assistant", character: inviteAsk.host, content: "今天的双人圆桌次数用完啦～升级少年启航版就能无限次让我俩一起陪你哦 🤍💙", ts: Date.now(), upsell: true }]);
+      return;
+    }
+    consumeRoundtableQuota();
+    const host = inviteAsk.host;
+    const joining = host === "anhe" ? "yusheng" : "anhe";
+    trackEvent("invite_accepted", { host });
+    setInviteAsk(null);
+    setInvitedJoining(true);
+    setRoundtable(true);
+    setRoundtableStartedAt(Date.now());
+    // 进场打招呼（卡死话术）
+    await new Promise(r => setTimeout(r, 1200)); // 进场动画留白
+    setMessages(ms => [...ms, { role: "assistant", character: joining, content: pickGreetingScript(joining), ts: Date.now(), greeting: true }]);
+    setInvitedJoining(false);
+  }
+
+  // 拒绝邀请：24h静默同话题
+  function declineInvite() {
+    const host = inviteAsk.host;
+    const duty = HOST_DUTY[host];
+    const opposite = duty === "emotion" ? "code" : "emotion";
+    silenceRef.current[opposite] = Date.now() + 24 * 3600 * 1000;
+    trackEvent("invite_declined", { host, silence_hours: 24 });
+    setMessages(ms => [...ms, { role: "assistant", character: host, content: declineScript(host), ts: Date.now() }]);
+    setInviteAsk(null);
+  }
+
+  // 退出圆桌
+  function exitRoundtable() {
+    // 谁退出：非当前主持人的那个
+    const leaving = charId === "anhe" ? "yusheng" : "anhe";
+    const durationMin = roundtableStartedAt ? Math.round((Date.now() - roundtableStartedAt) / 60000) : 0;
+    const msgCount = messages.filter(m => m.role === "user").length;
+    trackEvent("roundtable_exited", { duration_minutes: durationMin, messages_count: msgCount });
+    setMessages(ms => [...ms, { role: "assistant", character: leaving, content: exitScript(leaving), ts: Date.now() }]);
+    setRoundtable(false);
+  }
+
 
   const character = useMemo(() => getCharacter(charId), [charId]);
   const currentScenario = SCENARIOS.find(x => x.id === scenario) || SCENARIOS[0];
@@ -254,7 +454,32 @@ export default function ChatPage() {
             <div style={{ fontSize: 11, color: "#888" }}>{currentScenario.desc}</div>
           </div>
           <div style={{ flex: 1 }} />
-          <CharacterSwitcher active={charId} onChange={setCharId} />
+          {/* 今日主持人 / 圆桌模式横条 */}
+          {roundtable ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 12px", borderRadius: 999, background: "linear-gradient(135deg,#fff0f5,#eef7ff)", border: "1px solid rgba(124,111,224,0.25)" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#7c6fe0" }}>🤍 许安和 + 💙 余生 · 圆桌</span>
+              <button onClick={exitRoundtable} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 999, border: "1px solid rgba(0,0,0,0.1)", background: "#fff", color: "#888", cursor: "pointer" }}>退出圆桌</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setCharId("anhe")}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, cursor: "pointer", fontSize: 12.5, fontWeight: 600,
+                  background: charId === "anhe" ? "#fff0f5" : "transparent",
+                  color: charId === "anhe" ? "#c46b82" : "#999",
+                  border: charId === "anhe" ? "1px solid rgba(196,107,130,0.4)" : "1px solid transparent",
+                  borderBottom: charId === "anhe" ? "2px solid #e097b0" : "1px solid transparent" }}>
+                🤍 许安和
+              </button>
+              <button onClick={() => setCharId("yusheng")}
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, cursor: "pointer", fontSize: 12.5, fontWeight: 600,
+                  background: charId === "yusheng" ? "#eef7ff" : "transparent",
+                  color: charId === "yusheng" ? "#2f7cae" : "#999",
+                  border: charId === "yusheng" ? "1px solid rgba(47,124,174,0.4)" : "1px solid transparent",
+                  borderBottom: charId === "yusheng" ? "2px solid #5aa0d0" : "1px solid transparent" }}>
+                💙 余生
+              </button>
+            </div>
+          )}
           <ModelSwitcher active={personaId} onChange={setPersonaId} compact />
           {activeMeta?.model && (
             <div title={`当前模型：${activeMeta.model.displayName}（${activeMeta.model.id}）`} style={{
@@ -283,6 +508,25 @@ export default function ChatPage() {
               }} />
             )}
             {messages.map((m, i) => <Bubble key={i} m={m} character={getCharacter(m.character || charId)} onApplyCode={applyCode} />)}
+
+            {/* 主持人询问：要不要叫另一个过来 */}
+            {inviteAsk && !sending && (
+              <div style={{ background: inviteAsk.host === "anhe" ? "#fff8fb" : "#f2f9ff", border: `1.5px solid ${inviteAsk.host === "anhe" ? "rgba(224,150,176,0.5)" : "rgba(90,160,208,0.5)"}`, borderRadius: 16, padding: "14px 16px" }}>
+                <div style={{ fontSize: 13.5, marginBottom: 12, lineHeight: 1.6, color: "#333" }}>
+                  <b style={{ color: inviteAsk.host === "anhe" ? "#c46b82" : "#2f7cae" }}>{inviteAsk.host === "anhe" ? "🤍 许安和" : "💙 余生"}：</b>
+                  {inviteAsk.line}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={acceptInvite} style={{ padding: "7px 16px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#7c6fe0,#9b8ff0)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✅ 叫他过来</button>
+                  <button onClick={declineInvite} style={{ padding: "7px 16px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.12)", background: "#fff", color: "#888", fontSize: 13, cursor: "pointer" }}>❌ 不用啦，就我们俩聊就行</button>
+                </div>
+              </div>
+            )}
+
+            {/* 进场动画 */}
+            {invitedJoining && (
+              <RoundtableEntrance joining={charId === "anhe" ? "yusheng" : "anhe"} />
+            )}
             {sending && <div style={{ padding: "4px 2px", color: "#888", fontSize: 12 }}>
               <span style={{ display: "inline-block", animation: "pulse 1.2s infinite" }}>●</span>
               <span style={{ marginLeft: 6 }}>{getCharacter(charId).displayName}正在回复…</span>
@@ -337,6 +581,14 @@ export default function ChatPage() {
                 color: "#fff", fontWeight: 700,
               }}>{busy ? "发…" : "发送"}</button>
             </div>
+            {messages.filter(m => m.role === "user" || m.role === "assistant").length >= 4 && !sessionCard && (
+              <div style={{ textAlign: "center", marginTop: 8 }}>
+                <button onClick={generateSessionCard} disabled={cardLoading}
+                  style={{ background: "transparent", border: "1px solid var(--line, #e5e0f0)", color: "#888", fontSize: 12, padding: "5px 14px", borderRadius: 14, cursor: cardLoading ? "default" : "pointer" }}>
+                  {cardLoading ? "正在为你小结…" : "☕ 今天先聊到这"}
+                </button>
+              </div>
+            )}
             <div style={{ fontSize: 11, color: "#888", marginTop: 6, textAlign: "center" }}>
               istarmate 是 AI 辅助成长伙伴，不提供心理诊疗服务。内容由 AI 生成，仅供参考，不代表专业建议。
               {activeMeta?.tier === "free" && " · 今日陪伴值有限，升级成长版可无限畅聊。"}
@@ -344,6 +596,38 @@ export default function ChatPage() {
           </div>
         </div>
       </section>
+
+      {sessionCard && (
+        <SessionSummaryCard
+          card={sessionCard}
+          onClose={() => setSessionCard(null)}
+          onSaveToMemory={saveCardToMemory}
+        />
+      )}
+
+      {/* 每天首次：今天想让谁陪你 */}
+      {showHostPicker && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(20,18,31,0.5)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "var(--card-solid, #fff)", borderRadius: 24, padding: "28px 24px", maxWidth: 360, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <p style={{ fontSize: 19, fontWeight: 700, margin: "0 0 6px" }}>今天想让谁陪你？</p>
+            <p style={{ fontSize: 13, color: "#888", margin: "0 0 22px" }}>随时可以在上面切换，聊到一半也能喊另一个来</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button onClick={() => pickHost("anhe")}
+                style={{ padding: "20px 12px", borderRadius: 18, border: "1.5px solid rgba(224,150,176,0.4)", background: "linear-gradient(135deg,#fff8fb,#fff0f5)", cursor: "pointer" }}>
+                <div style={{ fontSize: 34, marginBottom: 8 }}>🤍</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#c46b82" }}>许安和</div>
+                <div style={{ fontSize: 11.5, color: "#999", marginTop: 3 }}>温柔姐姐 · 听你说心事</div>
+              </button>
+              <button onClick={() => pickHost("yusheng")}
+                style={{ padding: "20px 12px", borderRadius: 18, border: "1.5px solid rgba(90,160,208,0.4)", background: "linear-gradient(135deg,#f2f9ff,#eef7ff)", cursor: "pointer" }}>
+                <div style={{ fontSize: 34, marginBottom: 8 }}>💙</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#2f7cae" }}>余生</div>
+                <div style={{ fontSize: 11.5, color: "#999", marginTop: 3 }}>编程学长 · 带你做东西</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -376,8 +660,9 @@ function Bubble({ m, character, onApplyCode }) {
   const { reasoning, answer } = splitReasoning(m.content);
   const codeBlocks = extractCodeBlocks(answer);
   const bubbleColor = character?.bubbleColor || "linear-gradient(135deg, #fff9ff, #f5f0ff)";
+  const isSupport = m.support; // 圆桌里"补一句"的旁听者，尺寸小一圈
   return (
-    <div style={{ display: "flex", justifyContent: "flex-start", gap: 8 }}>
+    <div style={{ display: "flex", justifyContent: "flex-start", gap: 8, opacity: isSupport ? 0.92 : 1, paddingLeft: isSupport ? 24 : 0 }}>
       <div style={{
         width: 36, height: 36, borderRadius: "50%",
         background: character?.color || "#B8AEFF", color: "#fff",
@@ -514,7 +799,7 @@ function buildGreeting(s, ch) {
     case "emotional_support": return `${ch.emoji} 我在这里，不急，慢慢说。不管是委屈、生气、还是说不出的堵，先告诉我现在最让你难受的那一件事是什么？`;
     case "self_checkin": return `${ch.emoji} 又见面啦。我们用一分钟，今天心情如果 0-10 分，你给它打几分？随便说，没有对错。`;
     case "cbt_therapy": return `${ch.emoji} 我们今天不聊大道理，只做一个很小的练习。先告诉我你最近最常在脑子里转的那句话是什么？`;
-    case "code": return `${ch.emoji} 我是川～要做什么 App？或者现在写代码卡在哪一步了？报错直接贴给我，我们当侦探一起破案 🕵️`;
+    case "code": return `${ch.emoji} 要做什么 App？或者现在写代码卡在哪一步了？报错直接贴给我，我们当侦探一起破案 🕵️`;
     case "learning_path": return `${ch.emoji} 我们一起定一个你真正想做到的目标，我帮你拆成每周最小的一步。先选一个你最想开始的？`;
     default: return `嗨～我是${ch.emoji}${ch.displayName}，有什么想聊的？`;
   }
