@@ -89,8 +89,7 @@ function TierBadge({ tier }) {
   const cfg = {
     free:    { bg: "rgba(124,111,224,0.12)", color: "#4b42b4", label: "免费版" },
     growth:  { bg: "linear-gradient(135deg,#8be9fd,#5ed5e5)", color: "#065a6a", label: "🌱 成长版" },
-    family:  { bg: "linear-gradient(135deg,#ffd59e,#ffb870)", color: "#6b3a00", label: "👨‍👩‍👧 家庭联动版" },
-    campus:  { bg: "linear-gradient(135deg,#b8aeff,#9084ff)", color: "#2a1a7a", label: "🏫 校园版" },
+    premium: { bg: "linear-gradient(135deg,#b8aeff,#9084ff)", color: "#2a1a7a", label: "💎 高级版" },
   }[tier] || { bg: "rgba(0,0,0,0.05)", color: "#333", label: tier };
   return (
     <div style={{
