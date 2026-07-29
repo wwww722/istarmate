@@ -2,7 +2,7 @@
 // 新能力：三角色体系（星野/川/明川）+ 多模型矩阵 + 开源模型路由 + 思考过程流式 + 多模态图片 + 游戏化任务 + 陪伴值
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
-import { sql } from "../../lib/db";
+import { sqlQuery as sql } from "../../lib/db";
 import { getUserProfile, buildMemoryContext, buildRecentUserContext } from "../../lib/promptHelpers";
 import { getRiskNote, buildScenarioContext } from "../../lib/scenarios";
 import { buildThreadContext } from "../../lib/memory";
