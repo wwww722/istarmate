@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   const tier = await getCurrentTier(userId);
 
   // 1. 决定角色
-  const defaultChar = (scenario === "code" || /代码|编程|报错|运行|APP|网页/i.test((messages[messages.length-1]?.content) || "")) ? "kawa" : "hoshino";
+  const defaultChar = (scenario === "code" || /代码|编程|报错|运行|APP|网页/i.test((messages[messages.length-1]?.content) || "")) ? "yusheng" : "anhe";
   const charId = charIdRaw || defaultChar;
 
   // 2. 用户输入的最后一句话（用于路由和 CBT 触发）

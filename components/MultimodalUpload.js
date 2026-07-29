@@ -1,5 +1,5 @@
 // components/MultimodalUpload.js
-// 对标：GPT-4o 图片/文件上传 + 豆包相册
+// 图片/文件上传
 // - 把图片转 data:image/xxx;base64 发给后端，后端拼入 multimodal message
 // - 青少年友好：不支持陌生大文件，单张 < 2MB，最多 3 张
 import { useRef, useState } from "react";

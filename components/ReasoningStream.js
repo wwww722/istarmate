@@ -1,7 +1,7 @@
 // components/ReasoningStream.js
-// 对标：GPT-4o 思考过程（Chain-of-Thought 流式展示）+ Claude 3.5 内部思考
-// - DeepSeek-R1 / GPT-4o mini 这类模型会用 <think>...</think> 包思考过程
-// - 此组件在聊天消息上方渲染一个可折叠的「💭 明川/川/星野 正在想...」思考卡片
+// AI 思考过程流式展示
+// - 部分模型会用 <think>...</think> 包裹思考过程
+// - 此组件在聊天消息上方渲染一个可折叠的「💭 正在想...」思考卡片
 import { useEffect, useState } from "react";
 
 export default function ReasoningStream({ content, character }) {

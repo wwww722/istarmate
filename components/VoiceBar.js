@@ -1,5 +1,5 @@
 // components/VoiceBar.js
-// 对标：豆包 2025 实时语音通话（情绪语音+低延迟）/ GPT-4o 语音
+// 实时语音输入
 // - 语音输入：浏览器 MediaRecorder 录制 WebM → 后端上传 → SiliconFlow 语音识别（Whisper）或浏览器原生 webkitSpeechRecognition
 // - 语音输出：浏览器 SpeechSynthesis + 可选 SiliconFlow TTS API
 import { useEffect, useRef, useState } from "react";

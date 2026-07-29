@@ -1,5 +1,5 @@
 // components/ModelSwitcher.js
-// 人格/模型切换器：自动 / 豆包陪伴 / Claude代码 / GPT深度
+// 人格切换器：自动 / 温柔陪伴 / 编程高手 / 深度思考
 import { PERSONA_LIST_FOR_UI } from "../lib/modelMatrix";
 
 export default function ModelSwitcher({ active, onChange, compact }) {

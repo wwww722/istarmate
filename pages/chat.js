@@ -15,12 +15,8 @@ import LearningPathWizard from "../components/LearningPathWizard";
 import { getCharacter } from "../lib/characters";
 
 const SCENARIOS = [
-  { id: "general", name: "自由聊天", icon: "💬", char: "hoshino", desc: "想聊什么都可以" },
-  { id: "emotional_support", name: "情绪支持", icon: "🫂", char: "hoshino", desc: "需要倾诉的时候找星野" },
-  { id: "self_checkin", name: "每日心情打卡", icon: "🌅", char: "mingchuan", desc: "明川老师帮你记录" },
-  { id: "cbt_therapy", name: "CBT 成长练习", icon: "🧘", char: "hoshino", desc: "用卡片做小练习" },
-  { id: "code", name: "代码导师 / 做 App", icon: "💻", char: "kawa", desc: "川学长带你写代码" },
-  { id: "learning_path", name: "学习路径规划", icon: "🪜", char: "mingchuan", desc: "定目标，拆里程碑" },
+  { id: "general", name: "找许安和聊聊", icon: "🌙", char: "anhe", desc: "心里的事，说给她听" },
+  { id: "code", name: "找余生做东西", icon: "💻", char: "yusheng", desc: "余生学长带你写代码" },
 ];
 
 function detectCbtPreset(text) {
@@ -53,7 +49,7 @@ export default function ChatPage() {
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef(null);
   const [sending, setSending] = useState(false);
-  const [charId, setCharId] = useState("hoshino");
+  const [charId, setCharId] = useState("anhe");
   const [personaId, setPersonaId] = useState("auto");
   const [modelId, setModelId] = useState("auto");
   const [attachments, setAttachments] = useState([]);
@@ -278,12 +274,12 @@ export default function ChatPage() {
                 background: "linear-gradient(135deg,#faf7ff,#fff4fa)",
                 border: "1.5px dashed rgba(124,111,224,0.45)",
                 color: "#4b42b4", fontWeight: 700, fontSize: 13.5, cursor: "pointer", textAlign: "left",
-              }}>🪜 点这里，让明川老师帮你拆一份 12 周的专属路径</button>
+              }}>🪜 点这里，让余生帮你拆一份 12 周的专属学习路径</button>
             )}
             {showPath && scenario === "learning_path" && (
               <LearningPathWizard onConfirm={({ goal, milestones }) => {
                 setShowPath(false);
-                setMessages(ms => [...ms, { role: "assistant", character: "mingchuan", content: `太棒啦！我们就从「${goal.title}」开始。第一步：今天做最小的一件事——${milestones[0]?.detail || "把目标写在本子上"}，完成了就回来跟我说一声～`, ts: Date.now() }]);
+                setMessages(ms => [...ms, { role: "assistant", character: "anhe", content: `太棒啦！我们就从「${goal.title}」开始。第一步：今天做最小的一件事——${milestones[0]?.detail || "把目标写在本子上"}，完成了就回来跟我说一声～`, ts: Date.now() }]);
               }} />
             )}
             {messages.map((m, i) => <Bubble key={i} m={m} character={getCharacter(m.character || charId)} onApplyCode={applyCode} />)}

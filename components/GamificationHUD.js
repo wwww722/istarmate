@@ -139,7 +139,7 @@ function DailyTasksModal({ onClose, snap }) {
           })}
         </div>
         <div style={{ marginTop: 16, padding: 12, background: "linear-gradient(135deg,#fff4e0,#fff9f0)", borderRadius: 12, fontSize: 12, color: "#8a5a10" }}>
-          💡 和星野/川聊天、呼吸练习、运行代码、心情打卡都能完成任务拿 XP 和星光币，连胜 3/7 天还有额外奖励哦！
+          💡 和许安和、余生聊天、呼吸练习、运行代码、心情打卡都能完成任务拿 XP 和星光币，连胜 3/7 天还有额外奖励哦！
         </div>
       </div>
     </div>

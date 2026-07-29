@@ -34,7 +34,7 @@ export default function LearningPathWizard({ onConfirm }) {
       <div style={{ padding: 18, borderRadius: 16, background: "linear-gradient(135deg,#f0fff4,#e6fffa)", border: "1.5px solid rgba(60,180,120,0.3)" }}>
         <div style={{ fontSize: 16, fontWeight: 700, color: "#1f7a4c" }}>🎉 路径已启动！已同步 +120 XP 到你的账户～</div>
         <div style={{ marginTop: 8, fontSize: 13, color: "#222" }}>
-          明川老师会每周一提醒你本周的里程碑，完成后自动解锁奖励！
+          余生会每周提醒你本周的里程碑，完成后自动解锁奖励！
         </div>
       </div>
     );
@@ -43,7 +43,7 @@ export default function LearningPathWizard({ onConfirm }) {
   return (
     <div style={{ padding: 16, borderRadius: 16, background: "linear-gradient(135deg,#faf7ff,#fff4fa)", border: "1.5px solid rgba(124,111,224,0.25)" }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: step === 0 ? 10 : 8, color: "#4b42b4" }}>
-        🪜 {step === 0 ? "选一个你最想实现的目标：" : `好！${goal.title}，明川老师帮你拆解成每周里程碑：`}
+        🪜 {step === 0 ? "选一个你最想实现的目标：" : `好！${goal.title}，余生帮你拆解成每周里程碑：`}
       </div>
       {step === 0 && (
         <div style={{ display: "grid", gap: 8 }}>
