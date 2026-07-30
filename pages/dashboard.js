@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { getTodayGreeting } from "../lib/dailyGreetings";
 import { useSession, signOut } from "next-auth/react";
 import { AchievementPopup, SkeletonCard } from "../components/PageTransition";
 import MoodChart from "../components/MoodChart";
@@ -235,18 +236,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 两个核心：星伴 + 代码星 */}
+      {/* 今日一句：许安和/余生主动开口 */}
+      <div className="card" style={{ marginBottom: 14, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start", background: "linear-gradient(135deg, #fff8fb, #f5f0ff)" }}>
+        <span style={{ fontSize: 24, flexShrink: 0 }}>🤍</span>
+        <div>
+          <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "0 0 2px", fontWeight: 600 }}>许安和</p>
+          <p style={{ fontSize: 13.5, color: "var(--ink)", margin: 0, lineHeight: 1.6 }}>{getTodayGreeting("anhe")}</p>
+        </div>
+      </div>
+
+      {/* 两个核心：许安和 + 余生 */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div className="card" onClick={() => router.push("/chat")}
-          style={{ cursor: "pointer", padding: "18px 16px", textAlign: "center", background: "linear-gradient(135deg, rgba(184,174,255,0.12), rgba(124,111,224,0.06))" }}>
-          <div style={{ fontSize: 30, marginBottom: 8 }}>✦</div>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 3px" }}>找星伴聊聊</p>
-          <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>心里的事，说给它听</p>
+          style={{ cursor: "pointer", padding: "18px 16px", textAlign: "center", background: "linear-gradient(135deg, rgba(224,150,176,0.12), rgba(196,107,130,0.06))" }}>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>🤍</div>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 3px" }}>找许安和聊聊</p>
+          <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>心里的事，说给她听</p>
         </div>
         <div className="card" onClick={() => router.push("/ai-course/studio")}
           style={{ cursor: "pointer", padding: "18px 16px", textAlign: "center", background: "linear-gradient(135deg, rgba(63,167,150,0.12), rgba(63,167,150,0.05))" }}>
           <div style={{ fontSize: 30, marginBottom: 8 }}>💻</div>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 3px" }}>找代码星创作</p>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 3px" }}>找余生创作</p>
           <p style={{ fontSize: 11.5, color: "var(--ink-soft)", margin: 0 }}>{aiCourseActive ? "继续上次的项目" : "做出你的第一个作品"}</p>
         </div>
       </div>

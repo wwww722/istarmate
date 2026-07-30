@@ -1,7 +1,7 @@
 // pages/api/profile.js
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
-import { saveProfile, getProfile } from "../../lib/db";
+import { saveProfile, getProfile, setCalledAs } from "../../lib/db";
 
 export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions);
@@ -25,6 +25,14 @@ export default async function handler(req, res) {
       gender: gender || existing?.gender,
       avatarName, avatarEmoji, avatarCode,
     });
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === "PATCH") {
+    const { calledAs } = req.body || {};
+    // 简单防真名：太长的拒绝
+    const v = String(calledAs || "").slice(0, 12);
+    await setCalledAs(userId, v);
     return res.status(200).json({ ok: true });
   }
 

@@ -1,7 +1,7 @@
 // components/LearningPathWizard.js
 // 对标：Khanmigo 学习路径 + Duolingo Max 路线图
 // - 家长/孩子选择目标（比如「我想 3 个月做出第一个属于自己的 App」/「这学期数学从 C 到 A」/「敢在课堂上发言」）
-// - 明川老师拆解为每周里程碑，每完成一个解锁 XP + 星光币
+// - 余生拆解为每周里程碑，每完成一个解锁 XP + 星光币
 import { useState } from "react";
 
 const PRESET_GOALS = [
@@ -12,7 +12,7 @@ const PRESET_GOALS = [
   { icon: "💗", title: "和妈妈不再一说话就吵架", weeks: 8, track: "family" },
 ];
 
-export default function LearningPathWizard({ onConfirm }) {
+export default function LearningPathWizard({ onConfirm, onClose }) {
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(null);
   const [milestones, setMilestones] = useState([]);
@@ -41,8 +41,12 @@ export default function LearningPathWizard({ onConfirm }) {
   }
 
   return (
-    <div style={{ padding: 16, borderRadius: 16, background: "linear-gradient(135deg,#faf7ff,#fff4fa)", border: "1.5px solid rgba(124,111,224,0.25)" }}>
-      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: step === 0 ? 10 : 8, color: "#4b42b4" }}>
+    <div style={{ padding: 16, borderRadius: 16, background: "linear-gradient(135deg,#faf7ff,#fff4fa)", border: "1.5px solid rgba(124,111,224,0.25)", position: "relative" }}>
+      {onClose && (
+        <button onClick={onClose} title="关闭"
+          style={{ position: "absolute", top: 10, right: 12, background: "transparent", border: "none", fontSize: 18, color: "#999", cursor: "pointer", lineHeight: 1 }}>×</button>
+      )}
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: step === 0 ? 10 : 8, color: "#4b42b4", paddingRight: 20 }}>
         🪜 {step === 0 ? "选一个你最想实现的目标：" : `好！${goal.title}，余生帮你拆解成每周里程碑：`}
       </div>
       {step === 0 && (

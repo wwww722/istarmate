@@ -321,3 +321,6 @@ CREATE TABLE IF NOT EXISTS quality_logs (
   created_at TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_quality_time ON quality_logs(role_kind, created_at DESC);
+
+-- 用户自定义称呼（许安和/余生叫 TA 什么）
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS called_as TEXT DEFAULT '';

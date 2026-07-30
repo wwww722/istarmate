@@ -10,12 +10,32 @@ export default function Account() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [calledAs, setCalledAs] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     import("../lib/feedback").then(({ soundEnabled }) => {
       setSoundOn(soundEnabled());
     }).catch(() => {});
+    // 加载当前称呼
+    fetch("/api/profile").then(r => r.json()).then(d => {
+      if (d.profile?.called_as) setCalledAs(d.profile.called_as);
+    }).catch(() => {});
   }, []);
+
+  async function saveCalledAs() {
+    setSavingName(true);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ calledAs: calledAs.trim() }),
+      });
+      setMsg("称呼保存好啦～");
+      setTimeout(() => setMsg(""), 2000);
+    } catch { setErr("保存失败，再试一次"); }
+    setSavingName(false);
+  }
 
   async function toggleSound() {
     const next = !soundOn;
@@ -133,6 +153,25 @@ export default function Account() {
                 <span style={{ color: "var(--ink-muted)" }}>›</span>
               </button>
             ))}
+          </div>
+
+          <div className="card" style={{ padding: "16px 18px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 18 }}>🏷️</span>
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>许安和 / 余生 叫我什么</span>
+            </div>
+            <input
+              value={calledAs}
+              onChange={(e) => setCalledAs(e.target.value)}
+              placeholder="默认叫你「你」，可填 小X、X哥、X姐、大佬…"
+              maxLength={12}
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid var(--line)", borderRadius: 10, padding: "9px 12px", fontSize: 14, background: "var(--card-solid)", color: "var(--ink)" }}
+            />
+            <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: "6px 0 10px" }}>⚠️ 为了保护隐私，请不要填真实姓名哦</p>
+            <button onClick={saveCalledAs} disabled={savingName}
+              className="btn primary" style={{ width: "100%", opacity: savingName ? 0.6 : 1 }}>
+              {savingName ? "保存中…" : "保存称呼"}
+            </button>
           </div>
 
           <div className="card" style={{ padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>

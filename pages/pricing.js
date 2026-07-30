@@ -51,6 +51,9 @@ export default function PricingPage() {
   return (
     <div style={{ background: "linear-gradient(180deg,#faf7ff 0%,#f0faff 100%)", minHeight: "100vh" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 24px 60px" }}>
+        <div style={{ marginBottom: 8 }}>
+          <Link href="/dashboard" style={{ color: "#7c6fe0", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>← 返回</Link>
+        </div>
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ display: "inline-block", padding: "6px 16px", background: "rgba(124,111,224,0.12)", color: "#5a4bb8", borderRadius: 999, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>

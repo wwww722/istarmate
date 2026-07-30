@@ -22,7 +22,15 @@ import RoundtableEntrance from "../components/RoundtableEntrance";
 const SCENARIOS = [
   { id: "general", name: "找许安和聊聊", icon: "🌙", char: "anhe", desc: "心里的事，说给她听" },
   { id: "code", name: "找余生做东西", icon: "💻", char: "yusheng", desc: "余生学长带你写代码" },
+  { id: "vent", name: "情绪垃圾桶", icon: "🗑️", char: "anhe", desc: "只管倒，不用回我" },
+  { id: "rescue", name: "紧急救场", icon: "🚨", char: "yusheng", desc: "明天要交！先让它跑起来" },
 ];
+
+// 特殊模式的锁死指令
+const MODE_INSTRUCTION = {
+  vent: `\n\n【情绪垃圾桶模式·锁死】接下来用户只是想倾倒情绪，不需要你分析、不需要建议、不需要追问。你的回复只能是这几种之一：「🤍」「抱抱」「我在呢」「嗯，我听着」「说吧，我都接着」。绝对不要给任何建议、不要分析、不要追问原因。就当一个安全的容器，让TA尽情倒。`,
+  rescue: `\n\n【紧急救场模式·锁死】用户在赶deadline（作业/比赛明天要交），只想让东西先跑起来。你的输出必须严格按这个顺序，不许变：1) 3行以内的大白话紧急方案（先干什么）；2) 一个可以直接复制粘贴的完整代码块（要能跑，别省略）；3) 最后才用一行讲原理。先跑通，再讲为什么。不要长篇大论讲理论。`,
+};
 
 function detectCbtPreset(text) {
   if (!text) return null;
@@ -62,6 +70,7 @@ export default function ChatPage() {
   const [invitedJoining, setInvitedJoining] = useState(false); // 另一个人进场动画中
   const [roundtableStartedAt, setRoundtableStartedAt] = useState(0); // 圆桌开始时间（算时长）
   const [showHostPicker, setShowHostPicker] = useState(false); // 每天首次进入的主持人选择浮层
+  const [showQuiet, setShowQuiet] = useState(false); // 我要静静确认弹层
   const silenceRef = useRef({});                              // 24h静默 {code:ts, emotion:ts}
   const [sessionCard, setSessionCard] = useState(null);
   const [cardLoading, setCardLoading] = useState(false);
@@ -294,14 +303,18 @@ export default function ChatPage() {
         }
       } else {
         // ===== 单人模式：主持人回复 =====
-        await streamReply(charId, "", baseMsgs);
-        // 跨界检测：该不该问"要不要叫另一个过来"
-        const duty = HOST_DUTY[charId];
-        const opposite = duty === "emotion" ? "code" : "emotion";
-        const silenceUntil = silenceRef.current[opposite] || 0;
-        if (Date.now() > silenceUntil && shouldInvite(newTopics, charId)) {
-          setInviteAsk({ host: charId, line: pickAskScript(charId) });
-          trackEvent("host_asked_invite", { host: charId, detected: topic, round: newTopics.length });
+        const modeExtra = MODE_INSTRUCTION[scenario] || "";
+        await streamReply(charId, modeExtra, baseMsgs);
+        // vent/rescue 特殊模式不触发跨界邀请
+        if (!modeExtra) {
+          // 跨界检测：该不该问"要不要叫另一个过来"
+          const duty = HOST_DUTY[charId];
+          const opposite = duty === "emotion" ? "code" : "emotion";
+          const silenceUntil = silenceRef.current[opposite] || 0;
+          if (Date.now() > silenceUntil && shouldInvite(newTopics, charId)) {
+            setInviteAsk({ host: charId, line: pickAskScript(charId) });
+            trackEvent("host_asked_invite", { host: charId, detected: topic, round: newTopics.length });
+          }
         }
       }
 
@@ -481,6 +494,10 @@ export default function ChatPage() {
             </div>
           )}
           <ModelSwitcher active={personaId} onChange={setPersonaId} compact />
+          <button onClick={() => setShowQuiet(true)} title="接下来24小时不推送打扰你"
+            style={{ padding: "5px 10px", borderRadius: 999, border: "1px solid rgba(0,0,0,0.1)", background: "transparent", color: "#999", fontSize: 11.5, cursor: "pointer" }}>
+            🌙 我要静静
+          </button>
           {activeMeta?.model && (
             <div title={`当前模型：${activeMeta.model.displayName}（${activeMeta.model.id}）`} style={{
               padding: "4px 10px", borderRadius: 999, background: "rgba(124,111,224,0.08)",
@@ -502,7 +519,7 @@ export default function ChatPage() {
               }}>🪜 点这里，让余生帮你拆一份 12 周的专属学习路径</button>
             )}
             {showPath && scenario === "learning_path" && (
-              <LearningPathWizard onConfirm={({ goal, milestones }) => {
+              <LearningPathWizard onClose={() => setShowPath(false)} onConfirm={({ goal, milestones }) => {
                 setShowPath(false);
                 setMessages(ms => [...ms, { role: "assistant", character: "anhe", content: `太棒啦！我们就从「${goal.title}」开始。第一步：今天做最小的一件事——${milestones[0]?.detail || "把目标写在本子上"}，完成了就回来跟我说一声～`, ts: Date.now() }]);
               }} />
@@ -607,8 +624,11 @@ export default function ChatPage() {
 
       {/* 每天首次：今天想让谁陪你 */}
       {showHostPicker && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(20,18,31,0.5)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: "var(--card-solid, #fff)", borderRadius: 24, padding: "28px 24px", maxWidth: 360, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+        <div onClick={() => { setShowHostPicker(false); try { localStorage.setItem("istarmate_host_picked", new Date().toISOString().slice(0, 10)); } catch {} }}
+          style={{ position: "fixed", inset: 0, background: "rgba(20,18,31,0.5)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--card-solid, #fff)", borderRadius: 24, padding: "28px 24px", maxWidth: 360, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", position: "relative" }}>
+            <button onClick={() => { setShowHostPicker(false); try { localStorage.setItem("istarmate_host_picked", new Date().toISOString().slice(0, 10)); } catch {} }}
+              style={{ position: "absolute", top: 14, right: 16, background: "transparent", border: "none", fontSize: 20, color: "#bbb", cursor: "pointer" }}>×</button>
             <p style={{ fontSize: 19, fontWeight: 700, margin: "0 0 6px" }}>今天想让谁陪你？</p>
             <p style={{ fontSize: 13, color: "#888", margin: "0 0 22px" }}>随时可以在上面切换，聊到一半也能喊另一个来</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -624,6 +644,28 @@ export default function ChatPage() {
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#2f7cae" }}>余生</div>
                 <div style={{ fontSize: 11.5, color: "#999", marginTop: 3 }}>编程学长 · 带你做东西</div>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 我要静静确认弹层 */}
+      {showQuiet && (
+        <div onClick={() => setShowQuiet(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(20,18,31,0.5)", backdropFilter: "blur(4px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--card-solid,#fff)", borderRadius: 22, padding: "26px 24px", maxWidth: 340, width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🌙</div>
+            <p style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px" }}>给你一点安静</p>
+            <p style={{ fontSize: 13.5, color: "var(--ink-soft)", margin: "0 0 22px", lineHeight: 1.7 }}>
+              接下来 24 小时，{charId === "anhe" ? "许安和" : "余生"}不会主动发任何推送或提醒给你。你想回来时，随时打开就好。
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => {
+                try { localStorage.setItem("istarmate_quiet_until", String(Date.now() + 24 * 3600 * 1000)); } catch {}
+                setShowQuiet(false);
+                setMessages(ms => [...ms, { role: "assistant", character: charId, content: charId === "anhe" ? "好，接下来这段时间我不打扰你，你想我了随时来找我 🤍" : "行，那我先不吵你，随时回来喊我 💙", ts: Date.now() }]);
+              }} className="btn primary" style={{ flex: 1 }}>好，安静24小时</button>
+              <button onClick={() => setShowQuiet(false)}
+                style={{ padding: "0 18px", borderRadius: 12, border: "1px solid var(--line)", background: "transparent", color: "var(--ink-soft)", cursor: "pointer", fontSize: 14 }}>取消</button>
             </div>
           </div>
         </div>
