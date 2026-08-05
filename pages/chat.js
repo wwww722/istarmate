@@ -184,11 +184,11 @@ export default function ChatPage() {
   // 触发③：超过20条（每新增一轮判断一次，且距上次弹卡至少间隔）
   useEffect(() => {
     const realCount = messages.filter(m => m.role === "user" || m.role === "assistant").length;
-    if (realCount >= 20 && realCount - cardShownAt >= 20 && !sessionCard && !loading) {
+    if (realCount >= 20 && realCount - cardShownAt >= 20 && !sessionCard && !busy) {
       generateSessionCard();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, loading]);
+  }, [messages, busy]);
 
   // 存进记忆墙
   async function saveCardToMemory(card) {
