@@ -111,6 +111,8 @@ export default async function handler(req, res) {
     });
     if (!proxyResp.ok) {
       const txt = await proxyResp.text().catch(() => "");
+      // 在服务端日志里清楚标出是哪个模型ID失败了，方便排查
+      console.error(`[chat] 模型调用失败: model=${body.model} status=${proxyResp.status} detail=${txt.slice(0, 300)}`);
       return res.status(proxyResp.status).json({ error: `模型服务错误: ${proxyResp.status} - ${txt.slice(0, 400)}` });
     }
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
