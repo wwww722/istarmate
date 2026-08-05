@@ -20,6 +20,7 @@ import {
 } from "../lib/roundtable";
 import SessionSummaryCard from "../components/SessionSummaryCard";
 import RoundtableEntrance from "../components/RoundtableEntrance";
+import PersonaSkeleton from "../components/PersonaSkeleton";
 
 const SCENARIOS = [
   { id: "general", name: "找许安和聊聊", icon: "🌙", char: "anhe", desc: "心里的事，说给她听" },
@@ -96,7 +97,13 @@ export default function ChatPage() {
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.setAttribute("data-host", roundtable ? "anhe" : charId);
-    return () => { document.documentElement.removeAttribute("data-host"); };
+    // 人格主题：许安和→xu_anhe，余生→yusheng；圆桌用许安和主题
+    const persona = (charId === "yusheng" && !roundtable) ? "yusheng" : "xu_anhe";
+    document.documentElement.setAttribute("data-persona", persona);
+    return () => {
+      document.documentElement.removeAttribute("data-host");
+      document.documentElement.removeAttribute("data-persona"); // 离开聊天页恢复中性主题
+    };
   }, [charId, roundtable]);
 
   useEffect(() => {
@@ -458,7 +465,7 @@ export default function ChatPage() {
   }
 
   if (status === "loading") {
-    return <div style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: "#888" }}>加载中...</div>;
+    return <PersonaSkeleton persona={charId === "yusheng" ? "yusheng" : "xu_anhe"} />;
   }
 
   return (
@@ -786,7 +793,7 @@ function Bubble({ m, character, onApplyCode }) {
           {character?.displayName || "AI"} {character?.title && <span style={{ marginLeft: 6, fontWeight: 400 }}>· {character.title}</span>}
         </div>
         {reasoning && <ReasoningStream content={m.content} character={character} />}
-        <div style={{
+        <div className={m.character === "anhe" ? "xu-bubble-glow" : m.character === "yusheng" ? "yu-bubble-glow" : ""} style={{
           background: bubbleColor, color: "#22212c",
           borderRadius: 16, padding: "10px 14px", fontSize: 14.5, lineHeight: 1.7,
           whiteSpace: "pre-wrap", wordBreak: "break-word",
@@ -817,9 +824,10 @@ function Bubble({ m, character, onApplyCode }) {
             💡 以上代码由 AI 生成，上线到真实项目前请务必自行测试。
           </div>
         )}
-        {/* 每条 AI 消息底部水印 */}
-        <div style={{ fontSize: 10.5, color: "#bbb", marginTop: 6 }}>
-          由 istarmate AI 生成 · 不代表真人建议 · 紧急请打 12355
+        {/* 每条 AI 消息底部水印：3个小icon，hover显示完整文字 */}
+        <div title="由 istarmate AI 生成 · 不代表真人建议 · 紧急请打 12355"
+          style={{ fontSize: 12, color: "#ccc", marginTop: 6, cursor: "help", userSelect: "none" }}>
+          🤖 📜 🆘
         </div>
       </div>
     </div>
