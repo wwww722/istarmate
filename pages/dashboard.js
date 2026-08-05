@@ -274,6 +274,17 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* 星伴剧场入口 */}
+      <div className="card" onClick={() => router.push("/scenario")}
+        style={{ cursor: "pointer", padding: "14px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12, background: "linear-gradient(135deg, rgba(255,190,120,0.12), rgba(255,160,80,0.06))" }}>
+        <span style={{ fontSize: 26 }}>🎭</span>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 2px" }}>星伴剧场</p>
+          <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: 0 }}>每天一个专属小故事，陪你练练心里的话</p>
+        </div>
+        <span style={{ color: "var(--ink-muted)", fontSize: 18 }}>→</span>
+      </div>
+
       {/* 心情折线图 */}
       {moodLogs.length > 0 && <MoodChart logs={moodLogs} />}
 

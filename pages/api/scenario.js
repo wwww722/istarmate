@@ -23,7 +23,7 @@ async function generateTodayScenario(questionnaire, dateStr, userId) {
     }
   } catch {}
 
-  const prompt = `你是青少年心理剧场的场景设计师。请生成今天的小剧场场景。
+  const prompt = `你是青少年心理剧场的场景设计师。请生成今天的星伴剧场场景。
 
 今天是第 ${dayIndex % 365 + 1} 天。
 ${focusDomain ? `用户最近"${focusDomain.name}"需要关注（${focusDomain.desc}）` : "用户整体状态平稳"}

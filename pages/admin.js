@@ -234,7 +234,7 @@ export default function Admin() {
           <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 12px" }}>用户反馈</p>
           {stats.feedback.map((f, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", color: "var(--ink-soft)" }}>
-              <span>{f.context === "chat" ? "星伴聊天" : "小剧场"} · {f.rating === 1 ? "👍 有帮助" : "👎 没帮助"}</span>
+              <span>{f.context === "chat" ? "星伴聊天" : "星伴剧场"} · {f.rating === 1 ? "👍 有帮助" : "👎 没帮助"}</span>
               <span style={{ fontWeight: 600, color: "var(--ink)" }}>{f.count}</span>
             </div>
           ))}

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 const STEPS = [
   { emoji: "📊", title: "先做情绪自评", desc: "15题小问卷，帮星伴了解你最近的状态", color: "#8B7FD9" },
   { emoji: "☀️", title: "每天打卡心情", desc: "记录每天的状态，看自己的情绪趋势图", color: "#EF9F27" },
-  { emoji: "💬", title: "和星伴聊聊", desc: "每天有小剧场，随时可以找星伴倾诉", color: "#1D9E75" },
+  { emoji: "💬", title: "和星伴聊聊", desc: "每天有星伴剧场，随时可以找星伴倾诉", color: "#1D9E75" },
 ];
 
 export default function OnboardingTour({ onDone }) {

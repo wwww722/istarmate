@@ -167,7 +167,7 @@ export default function Scenario() {
   if (generating) return (
     <div className="wrap" style={{ textAlign: "center", paddingTop: 80 }}>
       <div style={{ fontSize: 36, marginBottom: 16 }}>✨</div>
-      <p style={{ color: "var(--ink-soft)", fontSize: 14.5 }}>今天的小剧场正在生成中...</p>
+      <p style={{ color: "var(--ink-soft)", fontSize: 14.5 }}>今天的星伴剧场正在生成中...</p>
       <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}><ThinkingDots /></div>
     </div>
   );
@@ -252,7 +252,7 @@ export default function Scenario() {
                 <button className="btn primary" style={{ width: "auto", padding: "0 18px" }} onClick={send}>发送</button>
               )}
             </div>
-            <button className="btn" style={{ fontSize: 13 }} onClick={finishToday}>结束今天的小剧场</button>
+            <button className="btn" style={{ fontSize: 13 }} onClick={finishToday}>结束今天的星伴剧场</button>
           </div>
         </div>
       )}

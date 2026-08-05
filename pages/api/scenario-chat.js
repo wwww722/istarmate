@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     scenario = choices.find(c => c && c._scenarioMeta)?._scenarioMeta;
   }
   if (!scenario) {
-    scenario = { title: "今天的小剧场", role: "星伴", setup: "今天想和你聊聊最近的状态。" };
+    scenario = { title: "今天的星伴剧场", role: "星伴", setup: "今天想和你聊聊最近的状态。" };
   }
 
   const questionnaire = q ? { domains: q.domains, crisisTriggered: q.crisis_triggered } : null;
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
   const maxTok = stressLevel >= 2 ? 150 : 200;
   const isWrapUp = userTurns >= 3; // 第3轮开始收尾
 
-  const systemPrompt = `你正在主持IStarMate的"每日沉浸式小剧场"，今天的情境是："${scenario.title}"。
+  const systemPrompt = `你正在主持IStarMate的"每日沉浸式星伴剧场"，今天的情境是："${scenario.title}"。
 
 【你要扮演的角色】${scenario.role}
 【场景背景】${scenario.setup}
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
 - 留给用户反应空间，每次回复严格控制在2-3句话以内，不超过${maxChars}字，宁可短不要长
 
 【故事节奏——重要】
-这个小剧场目标在3-4轮用户回应内完成一个完整的故事弧：
+这个星伴剧场目标在3-4轮用户回应内完成一个完整的故事弧：
 - 第1轮：建立场景，引出情绪钩子
 - 第2轮：深入情境，让用户有机会表达
 - 第3轮：推向高潮或转折
