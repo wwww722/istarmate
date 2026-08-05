@@ -7,6 +7,7 @@ import { getUserProfile, buildMemoryContext, buildRecentUserContext } from "../.
 import { getRiskNote, buildScenarioContext } from "../../lib/scenarios";
 import { buildThreadContext } from "../../lib/memory";
 import { buildCharacterSystemPrompt } from "../../lib/characters";
+import { buildForbiddenRule } from "../../lib/istarmateConstitution";
 import { resolvePersonaAndModel, autoPickPersonaByContent } from "../../lib/modelMatrix";
 import { resolveFullModel } from "../../lib/ossModelRoutes";
 import { pickSiliconflowModelId, sfApiKey, shouldUseSiliconflow } from "../../lib/models";
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
     errorStack: scenario === "code" ? ctxOverride?.errorStack : null,
   });
   const scenarioSystem = buildScenarioContext(scenario, profile, recentContext);
-  const finalSystem = (persona.systemPrefix || "") + "\n\n" + scenarioSystem + "\n" + charSystemPrompt + (extraInstruction ? "\n" + extraInstruction : "");
+  const finalSystem = buildForbiddenRule() + "\n\n" + (persona.systemPrefix || "") + "\n\n" + scenarioSystem + "\n" + charSystemPrompt + (extraInstruction ? "\n" + extraInstruction : "");
 
   // 6. 拼 messages（去掉原来的 system，统一替换；支持多模态 attachments）
   const cleanMessages = messages.filter(m => m.role !== "system");
@@ -170,7 +171,31 @@ export default async function handler(req, res) {
     res.end();
   } catch (e) {
     console.error("[chat] stream error:", e);
-    if (!res.headersSent) res.status(500);
-    res.end(`data: {"error":${JSON.stringify(e.message || String(e))}}\n\n`);
+    // Phase Ⅰ·21：永远不给前端红色报错，改用兜底话术
+    const ANHE_FALLBACK = [
+      "我的网络今天有点卡，你再说一遍好不好 🤍",
+      "刚才那下我没听清，能再说一次吗？",
+      "抱歉哦我刚刚走神了，可以重新发我一下吗？",
+      "我在呢，刚才那条没收到，能再发一遍吗 🤍",
+      "啊我卡了一下，你再说一次我这次一定好好听～",
+    ];
+    const YUSHENG_FALLBACK = [
+      "哦我网炸了，你重新发一次 💙",
+      "刚才沙盒引擎卡了一下，你那 bug 再贴我一次？",
+      "抱歉刚才那条丢了，重新发我一下马上帮你改！",
+      "我刚刚重启了一下环境，你再发一次？",
+      "收到一半卡住了，重发我一下 💪",
+    ];
+    const pool = (typeof charId !== "undefined" && charId === "yusheng") ? YUSHENG_FALLBACK : ANHE_FALLBACK;
+    const line = pool[Math.floor(Math.random() * pool.length)];
+    try {
+      if (!res.headersSent) {
+        res.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform" });
+      }
+      // 以正常内容形式发出，前端当普通回复渲染，不显示错误
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: line } }] })}\n\n`);
+      res.write("data: [DONE]\n\n");
+    } catch {}
+    res.end();
   }
 }

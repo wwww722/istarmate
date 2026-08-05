@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Ma+Shan+Zheng&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   --bg: #F5F3FF;
@@ -435,4 +435,36 @@ html[data-theme="dark"] select.input option {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ===== 7️⃣ 角色专属字体 ===== */
+/* 许安和：楷体感标题（Ma Shan Zheng 已在顶部引入） */
+
+.xu-title-font {
+  font-family: "Ma Shan Zheng", "楷体", "STKaiti", "KaiTi", serif;
+}
+/* 余生：等宽代码字体 */
+.yu-code-font {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+}
+
+/* ===== 8️⃣ 深色模式双配色（许安和夜 / 余生夜）===== */
+/* 许安和夜：偏暖、柔和的夜（藕紫+暖粉调） */
+html[data-theme="dark"][data-host="anhe"] {
+  --bg: #1a1620;
+  --card-solid: #241d2b;
+  --purple: #c9a0d8;
+  --purple-light: rgba(201,160,216,0.15);
+}
+/* 余生夜：偏冷、科技感的夜（墨蓝+青调） */
+html[data-theme="dark"][data-host="yusheng"] {
+  --bg: #10161d;
+  --card-solid: #16202b;
+  --purple: #5aa0d0;
+  --purple-light: rgba(90,160,208,0.15);
+}
+
+/* 代码块统一用余生的等宽字体 */
+pre, code, pre code {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
 }

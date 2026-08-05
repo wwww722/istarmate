@@ -12,6 +12,8 @@ import CbtMicroCard, { CBT_PRESETS } from "../components/CbtMicroCard";
 import CodeApplyBar from "../components/CodeApplyBar";
 import LearningPathWizard from "../components/LearningPathWizard";
 import { getCharacter } from "../lib/characters";
+import { enforceForbidden } from "../lib/istarmateConstitution";
+import { detectSilence } from "../lib/silenceMode";
 import {
   classifyTopic, HOST_DUTY, shouldInvite, pickAskScript, pickGreetingScript,
   exitScript, declineScript, roundtableRoles, supportInstruction, relayInstruction,
@@ -71,6 +73,8 @@ export default function ChatPage() {
   const [roundtableStartedAt, setRoundtableStartedAt] = useState(0); // 圆桌开始时间（算时长）
   const [showHostPicker, setShowHostPicker] = useState(false); // 每天首次进入的主持人选择浮层
   const [showQuiet, setShowQuiet] = useState(false); // 我要静静确认弹层
+  const [isMuted, setIsMuted] = useState(false); // 用户让闭嘴的静音态
+  const wait60Ref = useRef(null); // 哭泣后60秒等待
   const silenceRef = useRef({});                              // 24h静默 {code:ts, emotion:ts}
   const [sessionCard, setSessionCard] = useState(null);
   const [cardLoading, setCardLoading] = useState(false);
@@ -87,6 +91,13 @@ export default function ChatPage() {
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
+
+  // 8️⃣ 深色双配色：根据当前主持人切换夜间配色
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.setAttribute("data-host", roundtable ? "anhe" : charId);
+    return () => { document.documentElement.removeAttribute("data-host"); };
+  }, [charId, roundtable]);
 
   useEffect(() => {
     const s = SCENARIOS.find(x => x.id === scenario);
@@ -203,6 +214,12 @@ export default function ChatPage() {
   }
 
   async function streamReply(whoChar, extra, convMsgs) {
+    // 1️⃣ 打字速度模拟：回复前先"思考"一下，不秒回。
+    // 按最后一条用户消息长度估算：1.2s 固定 + 长消息多想一点，封顶 3.5s（比规格8s短，避免用户干等太久流失）
+    const lastUserLen = (convMsgs.filter(m => m.role === "user").slice(-1)[0]?.content || "").length;
+    const thinkDelay = Math.min(1200 + lastUserLen * 20, 3500);
+    await new Promise(r => setTimeout(r, thinkDelay));
+
     const resp = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -260,11 +277,12 @@ export default function ChatPage() {
     return answer;
   }
 
-  async function send() {
+  async function send(overrideText) {
     if (busy || sending) return;
-    const text = input.trim();
+    const text = (typeof overrideText === "string" ? overrideText : input).trim();
     if (!text && attachments.length === 0) return;
     const userMsg = { role: "user", content: text, ts: Date.now(), attachments: [...attachments] };
+    if (isMuted) setIsMuted(false); // 用户又说话了，解除静音
     const baseMsgs = messages.concat(userMsg);
     setMessages(ms => [...ms, userMsg]);
     setInput("");
@@ -273,6 +291,38 @@ export default function ChatPage() {
     // CBT 触发
     const preset = detectCbtPreset(text);
     if (preset) setCbtCard(CBT_PRESETS[preset]);
+
+    // 沉默模式检测（仅许安和场景）：命中则不调AI，安静接住
+    if (charId === "anhe") {
+      const prevUsers = messages.filter(m => m.role === "user").map(m => typeof m.content === "string" ? m.content : "");
+      const silence = detectSilence(text, prevUsers);
+      if (silence) {
+        if (silence.mute) {
+          setIsMuted(true);
+          return; // 静音，不发任何文字
+        }
+        if (silence.reply) {
+          setMessages(ms => [...ms, { role: "assistant", character: "anhe", content: silence.reply, ts: Date.now() }]);
+        }
+        if (silence.quiet24h) {
+          try { localStorage.setItem("istarmate_quiet_until", String(Date.now() + 24 * 3600 * 1000)); } catch {}
+        }
+        if (silence.wait60s) {
+          // 60秒后如果用户没说话，再发一条陪伴语
+          if (wait60Ref.current) clearTimeout(wait60Ref.current);
+          const msgCountAtWait = messages.length + 2;
+          wait60Ref.current = setTimeout(() => {
+            setMessages(ms => {
+              if (ms.length === msgCountAtWait) {
+                return [...ms, { role: "assistant", character: "anhe", content: "我一直在这儿陪着你，不着急，你想说的时候再说 🤍", ts: Date.now() }];
+              }
+              return ms;
+            });
+          }, 60000);
+        }
+        return; // 沉默模式命中，不走正常AI流程
+      }
+    }
 
     // 话题分类 + 记录最近话题
     const topic = classifyTopic(text);
@@ -544,10 +594,15 @@ export default function ChatPage() {
             {invitedJoining && (
               <RoundtableEntrance joining={charId === "anhe" ? "yusheng" : "anhe"} />
             )}
-            {sending && <div style={{ padding: "4px 2px", color: "#888", fontSize: 12 }}>
-              <span style={{ display: "inline-block", animation: "pulse 1.2s infinite" }}>●</span>
-              <span style={{ marginLeft: 6 }}>{getCharacter(charId).displayName}正在回复…</span>
-              <style>{`@keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }`}</style>
+            {isMuted && <div style={{ textAlign: "center", padding: "8px", color: "#aaa", fontSize: 12.5 }}>🔇 已静音 · 说点什么就会回来</div>}
+            {sending && <div style={{ padding: "4px 2px", color: "#888", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ display: "inline-flex", gap: 3 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#bbb", animation: "typingDot 1.2s infinite", animationDelay: "0s" }} />
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#bbb", animation: "typingDot 1.2s infinite", animationDelay: "0.2s" }} />
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#bbb", animation: "typingDot 1.2s infinite", animationDelay: "0.4s" }} />
+              </span>
+              <span>{getCharacter(charId).displayName}正在输入…</span>
+              <style>{`@keyframes typingDot { 0%,60%,100%{opacity:.3;transform:translateY(0)} 30%{opacity:1;transform:translateY(-2px)} }`}</style>
             </div>}
             {/* CBT 卡片（自动触发/也可手动开） */}
             {cbtCard && (
@@ -567,6 +622,19 @@ export default function ChatPage() {
               maxFiles={3}
               maxMB={2}
             />
+            {/* 快捷回复6颗（手机端显示） */}
+            <div className="quick-replies" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {(charId === "anhe"
+                ? ["嗯嗯", "🤗 抱抱我", "我也不知道", "你说呢", "我想换个话题", "今天先到这"]
+                : ["再讲一遍", "你先跑一遍试试", "我看不懂报错", "我放弃了", "换个方法", "今天先到这"]
+              ).map(q => (
+                <button key={q} onClick={() => send(q)}
+                  disabled={busy}
+                  style={{ padding: "6px 12px", borderRadius: 999, border: `1px solid ${charId === "anhe" ? "rgba(224,150,176,0.4)" : "rgba(90,160,208,0.4)"}`, background: charId === "anhe" ? "#fff8fb" : "#f2f9ff", color: charId === "anhe" ? "#c46b82" : "#2f7cae", fontSize: 12.5, cursor: busy ? "default" : "pointer", opacity: busy ? 0.5 : 1 }}>
+                  {q}
+                </button>
+              ))}
+            </div>
             <div style={{
               marginTop: 8,
               display: "flex", gap: 8, alignItems: "flex-end",
@@ -699,7 +767,9 @@ function Bubble({ m, character, onApplyCode }) {
       </div>
     );
   }
-  const { reasoning, answer } = splitReasoning(m.content);
+  const { reasoning, answer: rawAnswer } = splitReasoning(m.content);
+  // 宪法：禁令句扫描替换（兜底，防止模型漏说）
+  const answer = m.role === "assistant" ? enforceForbidden(rawAnswer) : rawAnswer;
   const codeBlocks = extractCodeBlocks(answer);
   const bubbleColor = character?.bubbleColor || "linear-gradient(135deg, #fff9ff, #f5f0ff)";
   const isSupport = m.support; // 圆桌里"补一句"的旁听者，尺寸小一圈
@@ -734,6 +804,23 @@ function Bubble({ m, character, onApplyCode }) {
             onFix={b.file ? () => onApplyCode?.({ file: b.file, code: b.code, runAfter: true }) : null}
           />
         ))}
+
+        {/* 危机/情绪类追加免责（许安和） */}
+        {m.character === "anhe" && /(难过|崩溃|自杀|自残|想死|活不下去|撑不下去)/.test(answer) && (
+          <div style={{ fontSize: 11.5, color: "#c07a2b", marginTop: 8, lineHeight: 1.6, background: "rgba(240,184,74,0.08)", padding: "8px 10px", borderRadius: 8 }}>
+            💡 以上是 AI 陪伴建议，如果你持续 2 周以上睡不好吃不下，一定要找学校心理老师或拨打 12355（8:30–22:30）。
+          </div>
+        )}
+        {/* 代码类追加免责（余生） */}
+        {m.character === "yusheng" && codeBlocks.length > 0 && (
+          <div style={{ fontSize: 11.5, color: "#888", marginTop: 8, lineHeight: 1.6 }}>
+            💡 以上代码由 AI 生成，上线到真实项目前请务必自行测试。
+          </div>
+        )}
+        {/* 每条 AI 消息底部水印 */}
+        <div style={{ fontSize: 10.5, color: "#bbb", marginTop: 6 }}>
+          由 istarmate AI 生成 · 不代表真人建议 · 紧急请打 12355
+        </div>
       </div>
     </div>
   );

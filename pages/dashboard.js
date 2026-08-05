@@ -240,7 +240,7 @@ export default function Dashboard() {
       <div className="card" style={{ marginBottom: 14, padding: "14px 16px", display: "flex", gap: 10, alignItems: "flex-start", background: "linear-gradient(135deg, #fff8fb, #f5f0ff)" }}>
         <span style={{ fontSize: 24, flexShrink: 0 }}>🤍</span>
         <div>
-          <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "0 0 2px", fontWeight: 600 }}>许安和</p>
+          <p className="xu-title-font" style={{ fontSize: 14, color: "var(--ink-muted)", margin: "0 0 2px", fontWeight: 600 }}>许安和</p>
           <p style={{ fontSize: 13.5, color: "var(--ink)", margin: 0, lineHeight: 1.6 }}>{getTodayGreeting("anhe")}</p>
         </div>
       </div>
