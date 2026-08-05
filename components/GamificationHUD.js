@@ -32,6 +32,8 @@ export default function GamificationHUD() {
   }, []);
 
   if (!snap) return null;
+  // 防御：任一关键子字段缺失就不渲染，避免整站白屏
+  if (!snap.league || !snap.nextLeague || typeof snap.xp !== "number") return null;
   const nextMin = Math.max(snap.nextLeague.min, snap.league.min + 1);
   const curIn = Math.max(0, snap.xp - snap.league.min);
   const need = Math.max(1, nextMin - snap.league.min);
