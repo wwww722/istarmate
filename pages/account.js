@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ChatBackgroundPicker } from "../components/ChatBackground";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
 
@@ -172,6 +173,14 @@ export default function Account() {
               className="btn primary" style={{ width: "100%", opacity: savingName ? 0.6 : 1 }}>
               {savingName ? "保存中…" : "保存称呼"}
             </button>
+          </div>
+
+          <div className="card" style={{ padding: "16px 18px", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>🎨</span>
+              <span style={{ fontSize: 14.5, fontWeight: 500 }}>聊天背景</span>
+            </div>
+            <ChatBackgroundPicker />
           </div>
 
           <div className="card" style={{ padding: "16px 18px", marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>

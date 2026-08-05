@@ -21,6 +21,9 @@ import {
 import SessionSummaryCard from "../components/SessionSummaryCard";
 import RoundtableEntrance from "../components/RoundtableEntrance";
 import PersonaSkeleton from "../components/PersonaSkeleton";
+import { ChatBackdrop } from "../components/ChatBackground";
+import BreathingExercise from "../components/BreathingExercise";
+import { getChatBackground } from "../lib/chatBackgrounds";
 
 const SCENARIOS = [
   { id: "general", name: "找许安和聊聊", icon: "🌙", char: "anhe", desc: "心里的事，说给她听" },
@@ -75,7 +78,11 @@ export default function ChatPage() {
   const [showHostPicker, setShowHostPicker] = useState(false); // 每天首次进入的主持人选择浮层
   const [showQuiet, setShowQuiet] = useState(false); // 我要静静确认弹层
   const [isMuted, setIsMuted] = useState(false); // 用户让闭嘴的静音态
+  const [chatBg, setChatBg] = useState("morning");
+  const [showBreath, setShowBreath] = useState(false);
+  const breathPressRef = useRef(null);
   const wait60Ref = useRef(null); // 哭泣后60秒等待
+  useEffect(() => { setChatBg(getChatBackground()); }, []);
   const silenceRef = useRef({});                              // 24h静默 {code:ts, emotion:ts}
   const [sessionCard, setSessionCard] = useState(null);
   const [cardLoading, setCardLoading] = useState(false);
@@ -564,7 +571,9 @@ export default function ChatPage() {
         </header>
 
         {/* 消息区 */}
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 22px 8px" }}>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 22px 8px", position: "relative" }}>
+          <ChatBackdrop bgId={chatBg} />
+          <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{ maxWidth: 780, margin: "0 auto", display: "grid", gap: 12 }}>
             {/* 学习路径入口 */}
             {scenario === "learning_path" && !showPath && (
@@ -616,6 +625,7 @@ export default function ChatPage() {
               <CbtMicroCard initial={cbtCard} onClose={() => setCbtCard(null)} />
             )}
           </div>
+          </div>
         </div>
 
         {/* 输入区 */}
@@ -642,10 +652,14 @@ export default function ChatPage() {
                 </button>
               ))}
             </div>
+            {roundtable && (
+              <div style={{ textAlign: "center", fontSize: 11.5, color: "#a586c8", marginTop: 6 }}>👯 许安和+余生都在，说什么都行</div>
+            )}
             <div style={{
               marginTop: 8,
               display: "flex", gap: 8, alignItems: "flex-end",
-              background: "#fff", border: "1.5px solid rgba(124,111,224,0.25)",
+              background: scenario === "vent" ? "#eef2f7" : scenario === "rescue" ? "#fdeeee" : "#fff",
+              border: `1.5px solid ${scenario === "vent" ? "rgba(90,120,160,0.3)" : scenario === "rescue" ? "rgba(200,80,80,0.3)" : "rgba(124,111,224,0.25)"}`,
               borderRadius: 16, padding: "8px 8px 8px 14px",
               boxShadow: busy ? "0 0 0 3px rgba(124,111,224,0.12)" : "none",
             }}>
@@ -656,7 +670,11 @@ export default function ChatPage() {
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
                 }}
                 rows={1}
-                placeholder={`和 ${getCharacter(charId).displayName} 说点什么…（Enter 发送 / Shift+Enter 换行）`}
+                placeholder={
+                  scenario === "vent" ? "想倒什么就倒，我只听不说 🤍"
+                  : scenario === "rescue" ? "贴你的报错，先让它跑起来 💙"
+                  : `和 ${getCharacter(charId).displayName} 说点什么…（Enter 发送）`
+                }
                 style={{
                   flex: 1, resize: "none", border: "none", outline: "none", fontSize: 14.5,
                   lineHeight: 1.55, padding: "6px 2px", background: "transparent", color: "var(--ink,#222)",
@@ -671,8 +689,13 @@ export default function ChatPage() {
                 height: 40, padding: "0 18px", borderRadius: 12, border: "none", cursor: busy ? "not-allowed" : "pointer",
                 background: busy ? "rgba(124,111,224,0.35)" : "linear-gradient(135deg,#7c6fe0,#ff6fb3)",
                 color: "#fff", fontWeight: 700,
-              }}>{busy ? "发…" : "发送"}</button>
+              }}>{busy ? "发…" : scenario === "vent" ? "🤍" : scenario === "rescue" ? "🚨" : "发送"}</button>
             </div>
+            {input.length > 500 && (
+              <div style={{ textAlign: "right", fontSize: 11.5, color: "#e08a3c", marginTop: 4 }}>
+                {input.length} 字 · 有点长，要不要拆成两条说？
+              </div>
+            )}
             {messages.filter(m => m.role === "user" || m.role === "assistant").length >= 4 && !sessionCard && (
               <div style={{ textAlign: "center", marginTop: 8 }}>
                 <button onClick={generateSessionCard} disabled={cardLoading}
@@ -745,6 +768,18 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+      {/* 情绪急救·呼吸球（长按2秒） */}
+      <button
+        onMouseDown={() => { breathPressRef.current = setTimeout(() => setShowBreath(true), 800); }}
+        onMouseUp={() => clearTimeout(breathPressRef.current)}
+        onMouseLeave={() => clearTimeout(breathPressRef.current)}
+        onTouchStart={() => { breathPressRef.current = setTimeout(() => setShowBreath(true), 800); }}
+        onTouchEnd={() => clearTimeout(breathPressRef.current)}
+        title="长按 → 呼吸引导"
+        style={{ position: "fixed", right: 18, bottom: 90, width: 46, height: 46, borderRadius: "50%", border: "none", cursor: "pointer", zIndex: 800, background: "radial-gradient(circle at 35% 30%, #cdefff, #7ec8f0)", boxShadow: "0 4px 16px rgba(90,160,208,0.4)", fontSize: 20, animation: "logoBreath 3s ease-in-out infinite" }}>
+        🫧
+      </button>
+      {showBreath && <BreathingExercise onClose={() => setShowBreath(false)} />}
     </div>
   );
 }

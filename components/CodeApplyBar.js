@@ -7,7 +7,7 @@ export default function CodeApplyBar({ file, code, onApply, onApplyAndRun, onFix
       display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
       fontSize: 12.5,
     }}>
-      <div style={{ color: "#0a6a6e", fontWeight: 700, marginRight: 4 }}>💻 川 · 代码片段{file ? ` · ${file}` : ""}</div>
+      <div style={{ color: "#0a6a6e", fontWeight: 700, marginRight: 4 }}>💻 余生 · 代码片段{file ? ` · ${file}` : ""}</div>
       <div style={{ flex: 1 }} />
       {onFix && (
         <button onClick={onFix} style={{

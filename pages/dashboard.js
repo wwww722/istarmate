@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { getTodayGreeting } from "../lib/dailyGreetings";
+import { detectEasterEgg, alreadyTriggered, markTriggered } from "../lib/festivalEasterEggs";
 import { useSession, signOut } from "next-auth/react";
 import { AchievementPopup, SkeletonCard } from "../components/PageTransition";
 import MoodChart from "../components/MoodChart";
@@ -27,6 +28,18 @@ export default function Dashboard() {
   const [dayCount, setDayCount] = useState(1);
   const [mood, setMood] = useState(null);
   const [showDiary, setShowDiary] = useState(false);
+  const [easterEgg, setEasterEgg] = useState(null);
+
+  useEffect(() => {
+    // 节日彩蛋检测（一次性）
+    try {
+      const egg = detectEasterEgg(null);
+      if (egg && !alreadyTriggered(egg.once_key)) {
+        setEasterEgg(egg);
+        markTriggered(egg.once_key);
+      }
+    } catch {}
+  }, []);
   const [diaryMood, setDiaryMood] = useState(null);
   const [diaryNote, setDiaryNote] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
@@ -347,6 +360,18 @@ export default function Dashboard() {
       )}
 
       {showBreathing && <BreathingExercise onClose={() => setShowBreathing(false)} />}
+
+      {/* 节日彩蛋 */}
+      {easterEgg && (
+        <div onClick={() => setEasterEgg(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(20,18,31,0.6)", backdropFilter: "blur(6px)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--card-solid,#fff)", borderRadius: 24, padding: "32px 26px", maxWidth: 340, textAlign: "center", boxShadow: "0 24px 70px rgba(0,0,0,0.35)" }}>
+            <div style={{ fontSize: 56, marginBottom: 14, animation: "logoBreath 1.2s ease-in-out infinite" }}>{easterEgg.emoji}</div>
+            <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--ink)", margin: "0 0 20px" }}>{easterEgg.msg}</p>
+            <button onClick={() => setEasterEgg(null)} className="btn primary" style={{ width: "100%" }}>好呀 🤍</button>
+          </div>
+        </div>
+      )}
 
       <StarOrb moodToday={mood} />
     </div>
