@@ -372,7 +372,7 @@ export default function Studio() {
     await runStream(trimmed, trimmed);
   }
 
-  // 一键让代码星修复报错
+  // 一键让余生修复报错
   async function autoFix() {
     if (loading || !sandboxError) return;
     setAutoFixOffered(false);
@@ -442,7 +442,7 @@ export default function Studio() {
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div style={{ fontSize: 42, marginBottom: 10 }}>🚀</div>
             <h1 style={{ fontSize: 23, fontWeight: 700, marginBottom: 6 }}>想做点什么？</h1>
-            <p style={{ color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.7 }}>选一个开始，代码星会一步步带你做出来。</p>
+            <p style={{ color: "var(--ink-soft)", fontSize: 14, lineHeight: 1.7 }}>选一个开始，余生会一步步带你做出来。</p>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
@@ -512,7 +512,7 @@ export default function Studio() {
       )}
 
       <ChatInput value={input} onChange={setInput} onSend={send} onStop={stopStream} loading={loading}
-        placeholder="问代码星，或告诉他你想做什么..." enableVoice />
+        placeholder="问余生，或告诉他你想做什么..." enableVoice />
     </div>
   );
 
@@ -539,7 +539,7 @@ export default function Studio() {
           <button onClick={() => router.push("/ai-course")}
             style={{ background: "var(--purple-light)", border: "none", color: "var(--purple-deep)", fontSize: 13.5, padding: "8px 14px", borderRadius: 20, cursor: "pointer", fontWeight: 500, flexShrink: 0 }}>← 退出</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>代码星 · {mode === "react" ? "React" : mode === "python" ? "Python" : "网页"}</p>
+            <p style={{ fontSize: 14.5, fontWeight: 600, margin: 0 }}>余生 · {mode === "react" ? "React" : mode === "python" ? "Python" : "网页"}</p>
             <p style={{ fontSize: 11, color: "var(--ink-soft)", margin: 0 }}>边写边跑</p>
           </div>
           <button onClick={switchTheme} title="切换主题" style={{ background: "transparent", border: "none", fontSize: 16, cursor: "pointer", padding: "4px 6px" }}>{dark ? "☀️" : "🌙"}</button>
@@ -555,7 +555,7 @@ export default function Studio() {
           </div>
           <div className={`studio-code ${mobileTab === "code" ? "active" : ""}`} style={{ flex: 1, minWidth: 0, position: "relative" }}>
             {mode !== "python" && (
-              <button onClick={explainSelection} disabled={loading} title="选中代码后点这里，代码星帮你讲解"
+              <button onClick={explainSelection} disabled={loading} title="选中代码后点这里，余生帮你讲解"
                 style={{ position: "absolute", top: 8, right: 12, zIndex: 20, background: "rgba(124,111,224,0.92)", color: "#fff", border: "none", borderRadius: 18, padding: "6px 12px", fontSize: 12, cursor: loading ? "default" : "pointer", fontWeight: 500, boxShadow: "0 2px 10px rgba(0,0,0,0.2)", opacity: loading ? 0.5 : 1 }}>
                 💡 讲解选中代码
               </button>

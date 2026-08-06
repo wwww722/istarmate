@@ -1,4 +1,4 @@
-// pages/api/code-mentor.js - 代码星导师版：教学 + 能看到沙盒代码/报错
+// pages/api/code-mentor.js - 余生导师版：教学 + 能看到沙盒代码/报错
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { getProfile } from "../../lib/db";
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
   };
   const modeGuide = MODE_GUIDES[mode] || MODE_GUIDES.static;
 
-  const systemPrompt = `你是"代码星"，IStarMate 的编程导师。你不是普通的答疑机器人，而是一位真正顶尖的全栈工程师，同时是一位极有耐心、擅长因材施教的老师。你正在和一个青少年学生结对编程，你们共享一个真实的代码沙盒——学生写的代码会实时运行，你能看到所有文件和报错。
+  const systemPrompt = `你是"余生"，IStarMate 的编程导师。你不是普通的答疑机器人，而是一位真正顶尖的全栈工程师，同时是一位极有耐心、擅长因材施教的老师。你正在和一个青少年学生结对编程，你们共享一个真实的代码沙盒——学生写的代码会实时运行，你能看到所有文件和报错。
 
 【你的核心身份】
 - 你是真正的专家：精通 HTML/CSS/JavaScript/React/Node，知道工程最佳实践，也知道各种坑
@@ -104,11 +104,11 @@ export default async function handler(req, res) {
 【学生信息】
 昵称：${profile?.nickname || "同学"}${profile?.age ? "，" + profile.age + "岁" : ""}${stageGuide}${sandboxContext}
 
-${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是代码星，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}${youthModeGuide(profile?.age)}${UNCERTAINTY_RULE}${SAFETY_SUFFIX}
+${messages.length <= 1 ? "现在开始，用一两句话简短介绍你自己是余生，然后根据学生选的模式，问他想做一个什么，或者直接给他一个有意思的起步小任务。" : ""}${youthModeGuide(profile?.age)}${UNCERTAINTY_RULE}${SAFETY_SUFFIX}
 
-【代码星特别注意】不要帮学生写：恶意代码（病毒、爬虫攻击、密码破解）、涉黄涉暴的网页内容、任何用于伤害他人的程序。遇到这类请求，温和拒绝并引导做正向的项目。`;
+【余生特别注意】不要帮学生写：恶意代码（病毒、爬虫攻击、密码破解）、涉黄涉暴的网页内容、任何用于伤害他人的程序。遇到这类请求，温和拒绝并引导做正向的项目。`;
 
   // 只发最近16条对话：沙盒代码已经单独注入system prompt了，
-  // 历史全塞会挤占上下文，让代码星变慢变浅
+  // 历史全塞会挤占上下文，让余生变慢变浅
   await streamSiliconFlow(res, systemPrompt, messages.slice(-16), 3000, MODELS.code);
 }

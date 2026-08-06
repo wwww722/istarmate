@@ -29,10 +29,10 @@ export default async function handler(req, res) {
     };
     const convo = messages
       .filter(m => !(m.role === "user" && textOf(m.content).startsWith("（")))
-      .map(m => `${m.role === "user" ? "用户" : "星伴"}：${textOf(m.content)}`)
+      .map(m => `${m.role === "user" ? "用户" : "许安和"}：${textOf(m.content)}`)
       .join("\n");
 
-    const prompt = `以下是一个青少年和心理陪伴AI"星伴"的对话：
+    const prompt = `以下是一个青少年和心理陪伴AI"许安和"的对话：
 
 ${convo}
 

@@ -557,7 +557,6 @@ export default function ChatPage() {
               </button>
             </div>
           )}
-          <ModelSwitcher active={personaId} onChange={setPersonaId} compact />
           <button onClick={() => setShowQuiet(true)} title="接下来24小时不推送打扰你"
             style={{ padding: "5px 10px", borderRadius: 999, border: "1px solid rgba(0,0,0,0.1)", background: "transparent", color: "#999", fontSize: 11.5, cursor: "pointer" }}>
             🌙 我要静静

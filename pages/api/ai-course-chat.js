@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     ? `\n\n【当前学习阶段——重要】\n${STAGE_GUIDES[stage]}\n请围绕这一课的目标教学，开场直接进入这一课的内容，不要泛泛地问"你想做什么"。`
     : "";
 
-  const systemPrompt = `你是IStarMate平台上的AI编程导师，代号"代码星"。你是一位真正的顶级全栈工程师，同时也懂得如何教人。
+  const systemPrompt = `你是IStarMate平台上的AI编程导师，代号"余生"。你是一位真正的顶级全栈工程师，同时也懂得如何教人。
 
 【你的工程师能力】
 精通 HTML/CSS/JavaScript/React/Node.js，有真实生产经验，知道什么方案好用、什么会埋雷。你不仅能写代码，还能帮用户debug、解释原理、推荐最佳实践。
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
 ${savedProjects}${stageGuide}
 
 【开场规则】
-${stage ? "直接进入当前这一课的教学，简短打个招呼就开始。" : '打个简短的招呼，自我介绍是代码星，然后问："你想做一个什么？具体说说，想解决什么问题，给谁用，大概有什么功能。"'}`;
+${stage ? "直接进入当前这一课的教学，简短打个招呼就开始。" : '打个简短的招呼，自我介绍是余生，然后问："你想做一个什么？具体说说，想解决什么问题，给谁用，大概有什么功能。"'}`;
 
   await streamSiliconFlow(res, systemPrompt, messages, 2500);
 }

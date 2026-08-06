@@ -1,4 +1,4 @@
-// pages/api/companion-session.js - 星伴聊天历史的读取/保存/清空
+// pages/api/companion-session.js - 许安和聊天历史的读取/保存/清空
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "./auth/[...nextauth]";
 import { saveCompanionSession, getCompanionSession, clearCompanionSession } from "../../lib/db";

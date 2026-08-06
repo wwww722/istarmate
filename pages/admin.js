@@ -148,7 +148,7 @@ export default function Admin() {
           <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 14px" }}>后台自动抽样评估，用户无感</p>
           {quality.stats.map((q, i) => (
             <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: i < quality.stats.length - 1 ? "1px solid var(--line)" : "none" }}>
-              <p style={{ fontSize: 13.5, fontWeight: 600, margin: "0 0 6px" }}>{q.role_kind === "companion" ? "星伴" : "代码星"} <span style={{ fontSize: 11.5, color: "var(--ink-muted)", fontWeight: 400 }}>（{q.n}次抽样）</span></p>
+              <p style={{ fontSize: 13.5, fontWeight: 600, margin: "0 0 6px" }}>{q.role_kind === "companion" ? "许安和" : "余生"} <span style={{ fontSize: 11.5, color: "var(--ink-muted)", fontWeight: 400 }}>（{q.n}次抽样）</span></p>
               <div style={{ display: "flex", gap: 18, fontSize: 12.5, color: "var(--ink-soft)" }}>
                 <span>深度/共情 <b style={{ color: q.avg_depth >= 3.5 ? "var(--teal-deep)" : "var(--gold)" }}>{q.avg_depth || "-"}</b>/5</span>
                 <span>有用度 <b style={{ color: q.avg_help >= 3.5 ? "var(--teal-deep)" : "var(--gold)" }}>{q.avg_help || "-"}</b>/5</span>
@@ -161,7 +161,7 @@ export default function Admin() {
               <p style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-soft)", margin: "0 0 6px" }}>发现的问题：</p>
               {quality.recentIssues.slice(0, 5).map((iss, i) => (
                 <p key={i} style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 4px", lineHeight: 1.5 }}>
-                  · [{iss.role_kind === "companion" ? "星伴" : "代码星"}] {iss.issue}
+                  · [{iss.role_kind === "companion" ? "许安和" : "余生"}] {iss.issue}
                 </p>
               ))}
             </div>
@@ -176,7 +176,7 @@ export default function Admin() {
           <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "0 0 12px" }}>哪些功能真的被用起来了</p>
           {(() => {
             const max = Math.max(...usage.map(u => Number(u.count)), 1);
-            const LABELS = { chat: "星伴聊天", code: "代码星", checkin: "心情打卡", breathing: "呼吸练习" };
+            const LABELS = { chat: "许安和聊天", code: "余生", checkin: "心情打卡", breathing: "呼吸练习" };
             return usage.map((u, i) => (
               <div key={i} style={{ marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
@@ -234,7 +234,7 @@ export default function Admin() {
           <p style={{ fontSize: 14.5, fontWeight: 600, margin: "0 0 12px" }}>用户反馈</p>
           {stats.feedback.map((f, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "6px 0", color: "var(--ink-soft)" }}>
-              <span>{f.context === "chat" ? "星伴聊天" : "星伴剧场"} · {f.rating === 1 ? "👍 有帮助" : "👎 没帮助"}</span>
+              <span>{f.context === "chat" ? "许安和聊天" : "星伴剧场"} · {f.rating === 1 ? "👍 有帮助" : "👎 没帮助"}</span>
               <span style={{ fontWeight: 600, color: "var(--ink)" }}>{f.count}</span>
             </div>
           ))}

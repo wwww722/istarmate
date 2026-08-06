@@ -57,7 +57,7 @@ export default function AiCourse() {
           🚀 开始创作
         </button>
         <p style={{ fontSize: 12, color: "var(--ink-soft)", textAlign: "center", margin: "10px 0 20px" }}>
-          进入工作室，代码星会带你从零做出第一个作品
+          进入工作室，余生会带你从零做出第一个作品
         </p>
 
         <div style={{ display: "flex", gap: 10 }}>
