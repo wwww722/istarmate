@@ -41,7 +41,9 @@ export default async function handler(req, res) {
   let personaId = personaOverride === "auto" || !personaOverride ? autoPickPersonaByContent(lastUserText, charId) : personaOverride;
   const { persona } = resolvePersonaAndModel(charId, personaId);
   const fullModel = resolveFullModel({ charId, userTier: tier, preferredModelId: modelOverride, contentHint: lastUserText });
-  const sfModel = fullModel.sfModelId || pickSiliconflowModelId(scenario === "code" ? "code" : "smart");
+  // 强制使用验证过稳妥可用的模型ID（绕过 ossModelRoutes 里可能失效的 sfModelId，避免空气泡）
+  // 代码场景和情绪场景都用 DeepSeek-V3（SiliconFlow 官方示例默认，最稳）
+  const sfModel = pickSiliconflowModelId(scenario === "code" ? "code" : "smart");
 
   // 4. 扣能量（免费版有限量）
   if (scenario !== "self-checkin") {
@@ -86,6 +88,8 @@ export default async function handler(req, res) {
   // 7. 流式调用 SiliconFlow
   const apiKey = sfApiKey();
   const useSF = shouldUseSiliconflow();
+  // 诊断日志：确认 key 是否读到、用哪个模型
+  console.log(`[chat] 准备调用: hasKey=${!!apiKey} keyLen=${apiKey.length} useSF=${useSF} model=${sfModel}`);
   const baseUrl = useSF ? "https://api.siliconflow.cn/v1" : (process.env.OPENAI_API_BASE || "https://api.openai.com/v1");
   const key = useSF ? apiKey : (process.env.OPENAI_API_KEY || apiKey);
   const temperature = (fullModel.temperature ?? 0.7) + (persona.temperatureBoost || 0);
